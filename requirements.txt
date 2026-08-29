@@ -1,0 +1,16 @@
+# --- Core Agent ---
+langgraph
+langchain
+langchain-openai
+langchain-google-genai
+supabase
+pydantic>=2.0.0
+httpx
+
+# --- API & Server ---
+fastapi
+uvicorn
+python-dotenv
+
+# --- Scheduling & Tasks ---
+apscheduler

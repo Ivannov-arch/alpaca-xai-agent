@@ -8,12 +8,12 @@
 
 **Goal:** Get all tooling, credentials, and the repo scaffolded.
 
-- [ ] Create a GitHub repository `alpaca-xai-agent`
-- [ ] Clone it into this project folder
-- [ ] Set up a Python virtual environment (`venv` or `uv`) for the agent backend
-- [ ] Initialize a Next.js project in `frontend/` using `npx create-next-app`
-- [ ] Create `.env.example` with all required keys (no real values) ✅
-- [ ] Add `.env.local` and `.env` to `.gitignore`
+- [x] Create a GitHub repository `alpaca-xai-agent`
+- [x] Clone it into this project folder
+- [x] Set up a Python virtual environment (`venv` or `uv`) for the agent backend
+- [x] Initialize a Next.js project in `frontend/` using `npx create-next-app`
+- [x] Create `.env.example` with all required keys (no real values) ✅
+- [x] Add `.env.local` and `.env` to `.gitignore`
 - [ ] Collect all API keys and fill in `.env` (copy from `.env.example`):
   - `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` (paper trading account)
   - `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`

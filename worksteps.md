@@ -14,7 +14,7 @@
 - [x] Initialize a Next.js project in `frontend/` using `npx create-next-app`
 - [x] Create `.env.example` with all required keys (no real values) ✅
 - [x] Add `.env.local` and `.env` to `.gitignore`
-- [ ] Collect all API keys and fill in `.env` (copy from `.env.example`):
+- [x] Collect all API keys and fill in `.env` (copy from `.env.example`):
   - `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` (paper trading account)
   - `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`
   - `DEEPSEEK_API_KEY` or `GEMINI_API_KEY`
@@ -25,13 +25,13 @@
 
 **Goal:** Build the full relational schema with RLS enabled.
 
-- [ ] Create a new Supabase project
-- [ ] Enable the `pgvector` extension in Supabase SQL Editor
-- [ ] Run `database/schema.sql` to create all 4 tables:
+- [x] Create a new Supabase project
+- [x] Enable the `pgvector` extension in Supabase SQL Editor
+- [x] Run `database/schema.sql` to create all 4 tables:
   - `accounts`, `hypotheses`, `audit_logs`, `post_mortems`
-- [ ] Run `database/rls_policies.sql` to apply Row Level Security + create `match_post_mortems()` function
-- [ ] Update `database/seed.sql` with your actual `auth.users` UUID and run it
-- [ ] Verify schema in Supabase Table Editor
+- [x] Run `database/rls_policies.sql` to apply Row Level Security + create `match_post_mortems()` function
+- [x] Update `database/seed.sql` with your actual `auth.users` UUID and run it
+- [xq] Verify schema in Supabase Table Editor
 
 ---
 
@@ -39,17 +39,14 @@
 
 **Goal:** Wire up the Python agent project structure and LangGraph state machine scaffold.
 
-- [ ] Install Python dependencies:
-  ```
-  pip install langgraph langchain langchain-openai langchain-google-genai supabase httpx python-dotenv pydantic apscheduler fastapi uvicorn
-  ```
-- [ ] Implement `agent/config.py` — loads all env vars
-- [ ] Implement `agent/db.py` — Supabase client singleton and CRUD helpers for all 4 tables
-- [ ] Implement `agent/llm.py` — LLM client wrapper (DeepSeek or Gemini)
-- [ ] Implement `agent/state.py` — LangGraph `AgentState` TypedDict definition
-- [ ] Implement `agent/graph.py` — LangGraph graph with 4 node stubs:
-  - `formulate_hypothesis` → `execute_order` → `audit_position` → `close_and_post_mortem`
-- [ ] Smoke test: instantiate the graph and confirm it compiles without errors
+- [x] Install Python dependencies
+- [x] Implement `agent/config.py` — loads all env vars
+- [x] Implement `agent/db.py` — Supabase client singleton and CRUD helpers for all 4 tables
+- [x] Implement `agent/llm.py` — LLM client wrapper (Gemini)
+- [x] Implement `agent/state.py` — LangGraph `AgentState` TypedDict definition
+- [x] Implement `agent/graph.py` — Two compiled graphs: `trade_graph` (Phase 1→2) and `audit_graph` (Phase 3→4)
+- [x] Implement `agent/memory.py` — Vector memory retrieval helper
+- [x] Smoke test: both graphs compile without errors ✅
 
 ---
 

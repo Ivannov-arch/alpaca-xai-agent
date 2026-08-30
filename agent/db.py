@@ -7,17 +7,17 @@ Interaction pattern:
   - memory.py also calls search_similar_post_mortems() here.
 """
 from supabase import create_client, Client
-from agent.config import SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+from agent.config import SUPABASE_URL, SUPABASE_SECRET_KEY
 
 # ── Singleton client ──────────────────────────────────────────────────
 _client: Client | None = None
 
 
 def get_client() -> Client:
-    """Returns a cached Supabase service-role client."""
+    """Returns a cached Supabase secret-role client."""
     global _client
     if _client is None:
-        _client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+        _client = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
     return _client
 
 

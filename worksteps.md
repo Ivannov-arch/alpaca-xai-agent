@@ -16,7 +16,7 @@
 - [x] Add `.env.local` and `.env` to `.gitignore`
 - [x] Collect all API keys and fill in `.env` (copy from `.env.example`):
   - `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` (paper trading account)
-  - `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`
+  - `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SECRET_KEY`
   - `DEEPSEEK_API_KEY` or `GEMINI_API_KEY`
 
 ---
@@ -54,15 +54,16 @@
 
 **Goal:** Implement the Pre-Trade reasoning phase.
 
-- [ ] Implement `agent/tools/alpaca_tools.py`:
-  - `get_market_data(symbol, timeframe)` — calls Alpaca API for OHLCV data
-- [ ] Implement `agent/nodes/phase1_hypothesis.py`:
-  - Fetch OHLCV data for the target symbol
-  - Build a structured prompt for the LLM with market data
-  - Parse LLM response into a `HypothesisSchema` Pydantic model (thesis, targets, invalidation_triggers)
-  - Validate the schema strictly — abort if invalid
-  - Persist the validated hypothesis to `hypotheses` table with status `PENDING`
-- [ ] Unit test: run with a test symbol (e.g., `AAPL`) and verify a valid JSON hypothesis row is saved to DB
+- [x] Implement `agent/tools/alpaca_tools.py`:
+  - `get_market_data()`, `create_order()`, `get_positions()`, `get_position()`, `close_position()`, `get_account()`
+- [x] Implement `agent/nodes/phase1_hypothesis.py`:
+  - Retrieves past lessons from vector memory (memory.py)
+  - Fetches 30-day OHLCV data from Alpaca
+  - Builds structured LLM prompt with market data + memory context
+  - LLM responds with `HypothesisSchema` Pydantic model (structured output)
+  - Validates schema — sets `error` + `ABORTED` if invalid
+  - Persists validated hypothesis to `hypotheses` table with status `PENDING`
+- [x] Unit test: fill in `ACCOUNT_ID` in `test_phase1.py` and run it (PASSED ✅)
 
 ---
 

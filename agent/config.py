@@ -16,9 +16,9 @@ ALPACA_BASE_URL: str = os.getenv(
 
 # ── Supabase ──────────────────────────────────────────────────────────
 SUPABASE_URL: str = os.environ["SUPABASE_URL"]
-SUPABASE_ANON_KEY: str = os.environ["SUPABASE_ANON_KEY"]
-# Service role key bypasses RLS — only used server-side (agent backend)
-SUPABASE_SERVICE_ROLE_KEY: str = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+SUPABASE_PUBLISHABLE_KEY: str = os.environ["SUPABASE_PUBLISHABLE_KEY"]
+# Secret key bypasses RLS — only used server-side (agent backend)
+SUPABASE_SECRET_KEY: str = os.environ["SUPABASE_SECRET_KEY"]
 
 # ── LLM ───────────────────────────────────────────────────────────────
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
@@ -31,7 +31,7 @@ LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini")
 # ── Embedding ─────────────────────────────────────────────────────────
 # "gemini" uses text-embedding-004 (768 dims)
 EMBEDDING_PROVIDER: str = os.getenv("EMBEDDING_PROVIDER", "gemini")
-EMBEDDING_DIMENSIONS: int = int(os.getenv("EMBEDDING_DIMENSIONS", "768"))
+EMBEDDING_DIMENSIONS: int = int(os.getenv("EMBEDDING_DIMENSIONS", "3072"))
 
 # ── Agent Behaviour ───────────────────────────────────────────────────
 AUDIT_INTERVAL_MINUTES: int = int(os.getenv("AUDIT_INTERVAL_MINUTES", "15"))

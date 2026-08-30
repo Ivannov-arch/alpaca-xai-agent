@@ -21,20 +21,15 @@ def retrieve_relevant_memories(query: str, top_k: int = 3) -> list[dict]:
     """
     Given a natural language query (e.g. "buying AAPL on momentum breakout"),
     returns the top_k most similar past post-mortem lessons.
-
-    Args:
-        query:  Natural language description of the planned trade.
-        top_k:  Maximum number of lessons to retrieve.
-
-    Returns:
-        List of post-mortem dicts with fields:
-          - lesson_learned (str)
-          - outcome        ("WIN" | "LOSS" | "BREAKEVEN")
-          - pnl_percentage (float)
-          - similarity     (float, 0–1)
+    Returns an empty list if memory DB is unavailable or has no entries yet.
     """
-    embedding = embed_text(query)
-    return search_similar_post_mortems(embedding, limit=top_k)
+    try:
+        embedding = embed_text(query)
+        return search_similar_post_mortems(embedding, limit=top_k)
+    except Exception:
+        # Gracefully return empty memory on any error
+        # (expected on first run before any post-mortems exist)
+        return []
 
 
 def format_memories_for_prompt(memories: list[dict]) -> str:

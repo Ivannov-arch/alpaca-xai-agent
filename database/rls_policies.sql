@@ -108,7 +108,7 @@ CREATE POLICY "post_mortems_insert_own" ON public.post_mortems
 -- Used by agent/memory.py to retrieve relevant past lessons.
 -- ============================================================
 CREATE OR REPLACE FUNCTION match_post_mortems(
-    query_embedding VECTOR(1536),
+    query_embedding VECTOR(3072),
     match_threshold FLOAT DEFAULT 0.78,
     match_count     INT DEFAULT 3
 )

@@ -71,9 +71,8 @@ CREATE TABLE IF NOT EXISTS public.post_mortems (
     pnl_absolute        NUMERIC,
     outcome             TEXT CHECK (outcome IN ('WIN', 'LOSS', 'BREAKEVEN')),
     lesson_learned      TEXT NOT NULL,
-    -- 1536 dims for OpenAI text-embedding-3-small
-    -- Change to 768 if using Gemini text-embedding-004
-    embedding           VECTOR(1536),
+    -- 3072 dims for gemini-embedding-001
+    embedding           VECTOR(3072),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

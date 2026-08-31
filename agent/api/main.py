@@ -181,3 +181,15 @@ async def get_portfolio(account_id: str):
 async def get_memory(account_id: str):
     """Returns all post-mortems (vector memory) for an account."""
     return list_post_mortems(account_id)
+
+
+@app.get("/market-data")
+async def fetch_bars(symbol: str, timeframe: str = "1Day", limit: int = 40):
+    """Returns historical OHLCV bars for any stock or crypto symbol with customizable timeframe."""
+    from agent.tools.alpaca_tools import get_market_data
+    try:
+        bars = get_market_data(symbol, timeframe=timeframe, limit=limit)
+        return {"symbol": symbol, "timeframe": timeframe, "bars": bars}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

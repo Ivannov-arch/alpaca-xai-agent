@@ -107,3 +107,27 @@ export async function fetchMemories(accountId: string = DEV_ACCOUNT_ID): Promise
   if (!res.ok) throw new Error("Failed to fetch memory post-mortems");
   return res.json();
 }
+
+export interface MarketBar {
+  t: string;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+}
+
+export async function fetchMarketBars(
+  symbol: string,
+  timeframe: string = "1Day",
+  limit: number = 40
+): Promise<MarketBar[]> {
+  const encoded = encodeURIComponent(symbol);
+  const res = await fetch(
+    `${API_BASE_URL}/market-data?symbol=${encoded}&timeframe=${timeframe}&limit=${limit}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) throw new Error("Failed to fetch market data");
+  const data = await res.json();
+  return data.bars || [];
+}

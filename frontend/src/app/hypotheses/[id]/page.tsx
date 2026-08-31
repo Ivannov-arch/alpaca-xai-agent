@@ -8,6 +8,7 @@ import {
   Hypothesis,
   AuditLog,
 } from "@/lib/api";
+import TradingChart from "@/components/TradingChart";
 
 export default function HypothesisDetailPage({
   params,
@@ -134,6 +135,16 @@ export default function HypothesisDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Thesis & Parameters */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Interactive Candlestick & Risk Target Chart */}
+          <div className="terminal-card p-6">
+            <TradingChart
+              symbol={hypothesis.symbol}
+              targetPrice={Number(hypothesis.target_price)}
+              stopLossPrice={Number(hypothesis.stop_loss_price)}
+              entryPrice={hypothesis.entry_price ? Number(hypothesis.entry_price) : undefined}
+            />
+          </div>
+
           {/* Thesis Text Card */}
           <div className="terminal-card p-6">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">

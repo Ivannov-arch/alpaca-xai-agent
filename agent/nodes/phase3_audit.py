@@ -118,9 +118,20 @@ async def phase3_audit_position(state: AgentState) -> dict:
         symbol = hypothesis["symbol"]
 
         # ── 2. Fetch live position from Alpaca ──────────────────────────
-        position = get_position(symbol)  # Returns None if not filled yet
+        position = get_position(symbol)  # Returns None if not filled yet (e.g. market closed)
 
-        # ── 3. Fetch recent OHLCV for context ──────────────────────────
+        # GUARD: If position is not filled yet, HOLD and wait for market execution
+        if not position:
+            create_audit_log({
+                "hypothesis_id": hypothesis_id,
+                "llm_verdict": "HOLD",
+                "reasoning_summary": "Order pending fill on Alpaca (market closed or queued). Holding position until filled.",
+                "market_snapshot": {"current_price": None, "unrealised_pnl": 0.0},
+            })
+            return {
+                "audit_verdict": "HOLD",
+                "error": None,
+            }
         recent_bars = get_market_data(symbol, timeframe="1Day", limit=10)
 
         # ── 4. Build prompt and call LLM ────────────────────────────────

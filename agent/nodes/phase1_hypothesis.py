@@ -61,10 +61,15 @@ Your job is to analyze market data and produce a rigorous, structured trade hypo
 
 Rules you MUST follow:
 1. You must provide a clear, evidence-based thesis — not vague generalities.
-2. The stop_loss_price must be defined and realistic (max 5% below entry for buys).
-3. The target_price must offer at least a 2:1 reward-to-risk ratio vs the stop.
-4. You must provide at least 2 specific, measurable invalidation triggers.
-5. Respond ONLY with the structured JSON — no extra text.
+2. Position sizing (`qty`): target position value around $500 - $2,000 USD.
+   - For BTC/USD: qty between 0.01 and 0.03 BTC.
+   - For ETH/USD: qty between 0.1 and 0.5 ETH.
+   - For SOL/USD: qty between 2 and 10 SOL.
+   - For Stocks (e.g. AAPL, NVDA): qty between 5 and 50 shares.
+3. The stop_loss_price must be defined and realistic (max 3-5% risk).
+4. The target_price must offer at least a 2:1 reward-to-risk ratio vs the stop.
+5. You must provide at least 2 specific, measurable invalidation triggers.
+6. Respond ONLY with the structured JSON — no extra text.
 """
 
 

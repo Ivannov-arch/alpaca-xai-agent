@@ -13,7 +13,7 @@ import {
 export default function Dashboard() {
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
   const [hypotheses, setHypotheses] = useState<Hypothesis[]>([]);
-  const [symbolInput, setSymbolInput] = useState("AAPL");
+  const [symbolInput, setSymbolInput] = useState("BTC/USD");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export default function Dashboard() {
       setSuccessMsg(
         `Hypothesis created! ID: ${result.hypothesis_id} | Status: ${result.status}`
       );
-      setSymbolInput("AAPL");
+      setSymbolInput("BTC/USD");
       await loadData();
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to trigger trade");
@@ -86,7 +86,7 @@ export default function Dashboard() {
                   type="text"
                   value={symbolInput}
                   onChange={(e) => setSymbolInput(e.target.value)}
-                  placeholder="e.g. AAPL, NVDA, TSLA"
+                  placeholder="e.g. BTC/USD, ETH/USD, AAPL, NVDA"
                   className="flex-1 bg-slate-900/90 border border-slate-700 rounded px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 uppercase"
                   disabled={loading}
                 />

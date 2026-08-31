@@ -30,25 +30,42 @@ _HEADERS = {
 
 def get_market_data(symbol: str, timeframe: str = "1Day", limit: int = 30) -> list[dict]:
     """
-    Fetches historical OHLCV bars for a given symbol.
+    Fetches historical OHLCV bars for a given symbol (supports Stocks and Crypto).
+    Crypto symbols: BTC/USD, ETH/USD, SOL/USD, DOGE/USD, BTCUSD, etc.
     """
     from datetime import datetime, timedelta
-    # Calculate start date (e.g. 45 days ago to ensure we get 'limit' trading days)
     start_date = (datetime.utcnow() - timedelta(days=45)).strftime("%Y-%m-%dT00:00:00Z")
     
-    url = f"{_DATA_URL}/v2/stocks/{symbol}/bars"
-    params = {
-        "timeframe": timeframe,
-        "limit": limit,
-        "sort": "asc",
-        "feed": "iex",  # Go back to iex (free tier)
-        "start": start_date
-    }
-    resp = httpx.get(url, headers=_HEADERS, params=params, timeout=15)
-    resp.raise_for_status()
-    # Alpaca returns {"bars": null} when market is closed (weekend/holiday)
-    # Use 'or []' to handle explicit null, not just missing key
-    return resp.json().get("bars") or []
+    # Standardize crypto symbol format if slash missing (e.g. BTCUSD -> BTC/USD)
+    is_crypto = "/" in symbol or symbol.endswith("USD") or symbol.endswith("USDT")
+    clean_symbol = symbol
+    if is_crypto and "/" not in symbol:
+        clean_symbol = f"{symbol[:-3]}/{symbol[-3:]}"
+
+    if is_crypto:
+        url = f"{_DATA_URL}/v1beta3/crypto/us/bars"
+        params = {
+            "symbols": clean_symbol,
+            "timeframe": timeframe,
+            "limit": limit,
+            "start": start_date,
+        }
+        resp = httpx.get(url, headers=_HEADERS, params=params, timeout=15)
+        resp.raise_for_status()
+        bars_dict = resp.json().get("bars") or {}
+        return bars_dict.get(clean_symbol) or []
+    else:
+        url = f"{_DATA_URL}/v2/stocks/{symbol}/bars"
+        params = {
+            "timeframe": timeframe,
+            "limit": limit,
+            "sort": "asc",
+            "feed": "iex",
+            "start": start_date,
+        }
+        resp = httpx.get(url, headers=_HEADERS, params=params, timeout=15)
+        resp.raise_for_status()
+        return resp.json().get("bars") or []
 
 
 # ── Order Execution ───────────────────────────────────────────────────
@@ -58,29 +75,24 @@ def create_order(
     qty: float,
     side: str,
     order_type: str = "market",
+    time_in_force: str = "gtc",
     limit_price: float | None = None,
-    time_in_force: str = "day",
 ) -> dict:
     """
-    Places a paper trading order via Alpaca.
-
-    Args:
-        symbol:         Ticker symbol, e.g. "AAPL"
-        qty:            Number of shares (fractional supported)
-        side:           "buy" or "sell"
-        order_type:     "market" or "limit"
-        limit_price:    Required if order_type == "limit"
-        time_in_force:  "day", "gtc", "ioc", "fok" (default: "day")
-
-    Returns:
-        Alpaca order dict including "id" (alpaca_order_id).
+    Places a paper trading order on Alpaca.
+    Supports both stocks and crypto (e.g. BTC/USD, ETH/USD).
     """
-    payload: dict = {
-        "symbol": symbol,
+    is_crypto = "/" in symbol or symbol.endswith("USD") or symbol.endswith("USDT")
+    clean_symbol = symbol
+    if is_crypto and "/" not in symbol:
+        clean_symbol = f"{symbol[:-3]}/{symbol[-3:]}"
+
+    payload = {
+        "symbol": clean_symbol,
         "qty": str(qty),
         "side": side,
         "type": order_type,
-        "time_in_force": time_in_force,
+        "time_in_force": "gtc" if is_crypto else time_in_force,
     }
     if order_type == "limit" and limit_price is not None:
         payload["limit_price"] = str(limit_price)
@@ -113,9 +125,11 @@ def get_positions() -> list[dict]:
 
 def get_position(symbol: str) -> dict | None:
     """Returns the open position for a specific symbol, or None if not held."""
+    import urllib.parse
+    clean_sym = urllib.parse.quote(symbol, safe="")
     try:
         resp = httpx.get(
-            f"{_BROKER_URL}/v2/positions/{symbol}",
+            f"{_BROKER_URL}/v2/positions/{clean_sym}",
             headers=_HEADERS,
             timeout=15,
         )
@@ -134,8 +148,10 @@ def close_position(symbol: str) -> dict:
     Closes an open position for the given symbol at market price.
     Called exclusively by Phase 4 when audit_verdict == "CLOSE".
     """
+    import urllib.parse
+    clean_sym = urllib.parse.quote(symbol, safe="")
     resp = httpx.delete(
-        f"{_BROKER_URL}/v2/positions/{symbol}",
+        f"{_BROKER_URL}/v2/positions/{clean_sym}",
         headers=_HEADERS,
         timeout=15,
     )

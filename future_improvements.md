@@ -25,3 +25,16 @@ Dokumen ini memuat rencana pengembangan tingkat lanjut (roadmap) untuk menyempur
 
 ## 7. 📊 Quantitative Backtesting Engine
 * **Deskripsi:** Membangun modul backtesting berbasis histori data 1-3 tahun terakhir untuk menguji performa state machine LangGraph dan kualitas hipotesis sebelum diterapkan di akun live trading sesungguhnya.
+
+## 8. 🏢 Multi-Account & Portfolio Scenario Isolation
+* **Deskripsi:** Mendukung pengelolaan banyak akun (*multi-account*) dan sub-portofolio dengan skenario independen. 
+* **Implementasi:** Arsitektur database kita sudah 80% siap karena memiliki relasi `account_id` pada setiap tabel (`accounts`, `hypotheses`, `audit_logs`, `post_mortems`). Pengguna dapat membuat akun terpisah untuk skenario *High-Risk Speculative Crypto* dan *Low-Risk Retirement Stock Portfolio*.
+* **Fitur UI:** *Account Switcher Dropdown* pada header terminal untuk memilah analitik & riwayat transaksi per akun secara terpisah.
+
+## 9. 🧠 Multi-Strategy Archetypes (Aggressive, Swing, Conservative)
+* **Deskripsi:** Menyediakan pilihan kepribadian & profil risiko strategi bagi agen sebelum memicu transaksi:
+  * ⚡ **Scalping Mode (Agresif):** Timeframe 1-5 menit, Stop Loss sangat ketat (0.5–1%), frekuensi audit sub-menit.
+  * 📈 **Swing Trading Mode (Standar):** Timeframe H1–1Day, Risk-to-Reward 2:1+, frekuensi audit 15 menit.
+  * 🛡️ **Conservative / Long-Term Mode:** Timeframe Weekly, Stop Loss lebar (5–10%), fokus pada akumulasi aset & fundamental, frekuensi audit harian.
+* **Implementasi:** Parameter `strategy_profile` disuntikkan ke dalam *System Prompt* Gemini pada Phase 1 & Phase 3, sehingga LLM secara otomatis menyesuaikan kalkulasi Stop Loss, Target Profit, dan Invalidation Triggers sesuai kepribadian mode yang dipilih.
+

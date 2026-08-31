@@ -1,50 +1,49 @@
 # 🛠️ Debug Log: XAI Trading Agent Troubleshooting
 
-Dokumen ini mencatat ringkasan kendala (bugs/errors) yang dihadapi selama setup awal dan pengujian Phase 1, beserta penyebab dan solusinya.
+This document summarizes the issues, bugs, root causes, and solutions encountered during system setup, phase testing, and integration.
 
 ---
 
 ## 1. PowerShell Parameter Parsing Syntax Error
-*   **Penyebab:** Eksekusi script loop PowerShell untuk pembuatan folder struktur di CLI/sandbox Antigravity gagal karena shell parser mendeteksi karakter unescaped.
-*   **Solusi:** Menggunakan command sederhana direct shell native `mkdir` dan `type nul >` via `cmd /c` untuk men-scaffold project.
+*   **Cause:** Executing PowerShell loop scripts for directory creation in the sandbox CLI failed due to unescaped characters detected by the shell parser.
+*   **Solution:** Switched to standard direct native commands (`mkdir` and `type nul >`) via `cmd /c` to scaffold the project structure.
 
 ## 2. API v1beta Gemini Embedding Error (text-embedding-004)
-*   **Penyebab:** Class `GoogleGenerativeAIEmbeddings` bawaan `langchain-google-genai` memanggil API endpoint `v1beta` Google yang tidak mendukung model `text-embedding-004` untuk API key standard.
-*   **Solusi:** Menulis ulang fungsi `embed_text()` di `agent/llm.py` menggunakan official SDK `google-genai` terbaru (`client.models.embed_content()`) dengan model `gemini-embedding-001` (3072 dimensi).
+*   **Cause:** The default `GoogleGenerativeAIEmbeddings` class in `langchain-google-genai` invoked Google's `v1beta` API endpoint, which threw a 404 for `text-embedding-004` on standard API keys.
+*   **Solution:** Rewrote `embed_text()` in `agent/llm.py` using the official `google-genai` SDK (`client.models.embed_content()`) with `gemini-embedding-001` (3072 dimensions).
 
 ## 3. Supabase pgvector Size Mismatch (1536 vs 3072)
-*   **Penyebab:** Perubahan model embedding ke `gemini-embedding-001` mengubah output dimensi vector menjadi 3072, sementara di SQL schema awal diatur sebesar 1536 (OpenAI standard).
-*   **Solusi:** Mengupdate kolom `embedding` di `schema.sql` dan parameter fungsi `match_post_mortems()` di `rls_policies.sql` menjadi `VECTOR(3072)` lalu menjalankan migrasi ulang di Supabase.
+*   **Cause:** Switching the embedding model to `gemini-embedding-001` produced 3072-dimensional vectors, whereas the initial SQL schema was configured for 1536 (OpenAI standard).
+*   **Solution:** Updated the `embedding` column in `schema.sql` and the `match_post_mortems()` function in `rls_policies.sql` to `VECTOR(3072)`, then re-executed the migration in Supabase.
 
 ## 4. Windows Terminal CP1252 Encoding Error
-*   **Penyebab:** Karakter box-drawing unicode (`──`) pada `print()` statement di file test merusak eksekusi python di console Windows yang menggunakan encoding default CP1252.
-*   **Solusi:** Mengganti semua pemisah karakter unicode dengan karakter ASCII biasa (`---`).
+*   **Cause:** Unicode box-drawing characters (`──`) in Python `print()` statements caused encoding crashes on Windows consoles defaulting to CP1252.
+*   **Solution:** Replaced all unicode divider characters with standard ASCII dashes (`---`).
 
 ## 5. Alpaca Market Data Return Null on Weekends
-*   **Penyebab:** Endpoint `/v2/stocks/{symbol}/bars` dipanggil tanpa parameter `start`/`end`. Alpaca secara default mencocokkan waktu saat ini (weekend/sabtu-minggu saat market tutup) sehingga mengembalikan array kosong/null.
-*   **Solusi:** Memperbarui `get_market_data()` di `agent/tools/alpaca_tools.py` agar otomatis menghitung dan menyertakan parameter `"start": (current_time - 45 days)`.
+*   **Cause:** Calling `/v2/stocks/{symbol}/bars` without `start`/`end` parameters defaulted Alpaca to query current time bars (weekends = closed = null bars).
+*   **Solution:** Updated `get_market_data()` in `agent/tools/alpaca_tools.py` to calculate and supply `"start": (current_time - 45 days)` automatically.
 
 ## 6. Deprecated Gemini 2.0 Model Endpoint
-*   **Penyebab:** Google API memblokir pemanggilan model `gemini-2.0-flash` dan merespon dengan status `404` serta rekomendasi beralih ke `gemini-3.6-flash`.
-*   **Solusi:** Memperbarui parameter model di `agent/llm.py` menjadi `gemini-3.6-flash`.
+*   **Cause:** The Google API deprecated `gemini-2.0-flash`, returning a `404 Not Found` with a recommendation to use `gemini-3.6-flash`.
+*   **Solution:** Updated the model name in `agent/llm.py` to `gemini-3.6-flash`.
 
 ## 7. Supabase DNS Resolution (getaddrinfo failed)
-*   **Penyebab:** File `.env` masih menggunakan domain placeholder `your-project-ref.supabase.co` sehingga sistem operasi gagal me-resolve alamat IP hosting database.
-*   **Solusi:** Memperbarui parameter `SUPABASE_URL` di file `.env` dengan URL asli project Supabase.
+*   **Cause:** The `.env` file contained the placeholder domain `your-project-ref.supabase.co`, causing DNS lookup failures.
+*   **Solution:** Updated `SUPABASE_URL` in `.env` with the active Supabase project URL.
 
 ## 8. Relational Foreign Key Constraint Violation (23503)
-*   **Penyebab:** `ACCOUNT_ID` hardcoded pada file test unit tidak terdaftar di tabel `accounts` Supabase, memicu error constraint saat insert data ke tabel `hypotheses`.
-*   **Solusi:** Melakukan insert data user baru ke tabel `accounts` di Supabase, lalu mengganti `ACCOUNT_ID` di file `test_phase1.py` dengan UUID `id` akun yang baru terbuat.
+*   **Cause:** The hardcoded `ACCOUNT_ID` in unit tests did not exist in the Supabase `accounts` table, triggering a foreign key violation when inserting into `hypotheses`.
+*   **Solution:** Inserted a dev user record into `accounts` and updated `ACCOUNT_ID` in test files with the valid UUID `id`.
 
 ## 9. Premature CLOSE & Constant Breakeven Result on Unfilled Orders
-*   **Penyebab:** Saat jam pasar bursa saham tutup (weekend/off-hours), order terkirim ke Alpaca berstatus `pending_new` (belum terisi/`position is None`). Phase 3 audit menganggap hilangnya data harga sebagai sinyal invalidasi sehingga memicu `CLOSE` prematur dan menghasilkan PnL $0.00 (`BREAKEVEN`).
-*   **Solusi:** Menambahkan *Guard Protection* di `agent/nodes/phase3_audit.py` — jika `position is None`, audit otomatis mengembalikan status `HOLD` dan menunda penutupan hingga order benar-benar terisi di bursa.
+*   **Cause:** When market was closed, orders submitted to Alpaca remained in `pending_new` status (`position is None`). Phase 3 audit misinterpreted missing position data as an invalidation signal, triggering premature `CLOSE` and $0.00 PnL (`BREAKEVEN`).
+*   **Solution:** Added *Guard Protection* in `agent/nodes/phase3_audit.py` — if `position is None`, the audit automatically returns `HOLD` and defers evaluation until the order fills.
 
 ## 10. Alpaca 422 Unprocessable Entity & Endpoint Error for Crypto Pairs
-*   **Penyebab:** Eksekusi order & pengambilan data pasar untuk pasangan crypto (seperti `BTC/USD`) gagal karena endpoint `/v2/stocks` tidak mendukung crypto, parameter `time_in_force` default `"day"` ditolak Alpaca untuk crypto, serta karakter `/` pada nama simbol merusak HTTP URL routing.
-*   **Solusi:** 
-    * Mengarahkan fetch data crypto ke `/v1beta3/crypto/us/bars` di `agent/tools/alpaca_tools.py`.
-    * Memaksa parameter `time_in_force: "gtc"` untuk pasangan crypto pada `create_order()`.
-    * Menggunakan `urllib.parse.quote(symbol, safe="")` pada `get_position()` dan `close_position()` agar `BTC/USD` ter-encode dengan aman menjadi `BTC%2FUSD`.
-    * Memperbarui `_SYSTEM_PROMPT` di `phase1_hypothesis.py` dengan aturan *Position Sizing* khusus (misal 0.01 - 0.03 BTC) agar nilai transaksi berada di kisaran $500 - $2,000 USD.
-
+*   **Cause:** Executing orders and market data requests for crypto pairs (e.g. `BTC/USD`) failed because `/v2/stocks` endpoints do not support crypto, the default `time_in_force: "day"` is rejected for crypto, and unescaped `/` characters broke HTTP URL routing.
+*   **Solution:** 
+    * Routed crypto market data requests to `/v1beta3/crypto/us/bars` in `agent/tools/alpaca_tools.py`.
+    * Enforced `time_in_force: "gtc"` for crypto orders in `create_order()`.
+    * Encoded symbols using `urllib.parse.quote(symbol, safe="")` in `get_position()` and `close_position()` so `BTC/USD` safely encodes to `BTC%2FUSD`.
+    * Updated `_SYSTEM_PROMPT` in `phase1_hypothesis.py` with position sizing rules (e.g., 0.01 - 0.03 BTC) targeting $500 - $2,000 USD position values.

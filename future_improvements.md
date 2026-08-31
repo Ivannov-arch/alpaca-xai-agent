@@ -1,40 +1,39 @@
 # 🚀 Future Improvements & Roadmap: XAI Trading Agent
 
-Dokumen ini memuat rencana pengembangan tingkat lanjut (roadmap) untuk menyempurnakan agen trading otonom XAI di masa mendatang.
+This document outlines the advanced development roadmap for enhancing the autonomous XAI trading agent in future iterations.
 
 ---
 
 ## 1. 💰 Dynamic Portfolio Risk & Position Sizing Control
-* **Deskripsi:** Menambahkan kontrol alokasi modal berbasis persentase risiko (misal: maksimum 2% dari total ekuitas portofolio per transaksi) daripada menggunakan fixed range unit.
-* **Fitur UI:** Input bidang "Max Allocation ($ / %)" pada dashboard frontend agar pengguna dapat menyesuaikan batas maksimum dana per transaksi.
+* **Description:** Implement percentage-based risk control (e.g., maximum 2% of total portfolio equity per trade) instead of fixed lot ranges.
+* **UI Feature:** "Max Allocation ($ / %)" input field on the frontend dashboard to allow users to customize transaction limits.
 
 ## 2. 🔍 Automated Multi-Asset Scanner (Auto-Discovery)
-* **Deskripsi:** Membuat background scanner yang memindai daftar 50+ pasangan saham & crypto berpotensi secara berkala (misal tiap jam). Agen secara otomatis akan memilih aset terbaik yang membentuk setup teknikal ideal untuk dianalisis di Phase 1 tanpa perlu input manual.
+* **Description:** Create a background scanner that periodically monitors 50+ stock and crypto tickers. The agent automatically selects the best setups based on technical criteria for Phase 1 analysis without requiring manual user triggers.
 
 ## 3. 🎯 Dynamic Trailing Stop & Partial Profit Taking (Scale-Out)
-* **Deskripsi:** Mengembangkan Phase 3 Audit agar mendukung penutupan parsial (misal: Take Profit 50% posisi saat mencapai risk-to-reward 1:1, lalu menaikkan Stop Loss ke titik breakeven untuk sisa 50% posisi).
+* **Description:** Enhance Phase 3 Audit to support partial position closing (e.g., take 50% profit at 1:1 risk-to-reward ratio, then move Stop Loss to breakeven for the remaining 50%).
 
 ## 4. ⚡ Real-time WebSocket Streaming Feed
-* **Deskripsi:** Mengganti mekanisme REST API polling (15 detik) dengan Alpaca WebSocket Data Streaming (`wss://stream.data.alpaca.markets`). Hal ini memungkinkan evaluasi audit (Phase 3) berjalan secara sub-detik saat terjadi lonjakan harga ekstrem (*flash crash* / *breakout*).
+* **Description:** Replace REST API polling (15s interval) with Alpaca WebSocket Data Streaming (`wss://stream.data.alpaca.markets`) for sub-second audit evaluation during extreme market volatility (flash crashes / breakouts).
 
 ## 5. 📰 Sentiment Analysis & News Integration
-* **Deskripsi:** Menggabungkan data sentimen berita finansial real-time (via Finnhub / CryptoPanic API / X) ke dalam prompt LLM Phase 1. Agen tidak hanya menganalisis grafik OHLCV tetapi juga memperhitungkan *catalyst* berita terkini.
+* **Description:** Integrate real-time financial news sentiment data (via Finnhub / CryptoPanic API / X) into the Phase 1 LLM prompt, combining news catalysts with OHLCV price action analysis.
 
 ## 6. 🤝 Multi-LLM Ensemble Voting
-* **Deskripsi:** Memperluas pembuat hipotesis dengan menggabungkan hasil analisis dari beberapa LLM sekaligus (misal: Gemini 3.6 Flash + Claude 3.5 Sonnet + DeepSeek V3). Transaksi hanya dieksekusi jika minimal 2 dari 3 LLM memberikan konfirmasi sinyal searah.
+* **Description:** Expand hypothesis formulation by aggregating signals from multiple LLMs (e.g., Gemini 3.6 Flash + Claude 3.5 Sonnet + DeepSeek V3). Trades execute only when at least 2 out of 3 models reach consensus.
 
 ## 7. 📊 Quantitative Backtesting Engine
-* **Deskripsi:** Membangun modul backtesting berbasis histori data 1-3 tahun terakhir untuk menguji performa state machine LangGraph dan kualitas hipotesis sebelum diterapkan di akun live trading sesungguhnya.
+* **Description:** Build a backtesting module using 1-3 years of historical market data to evaluate LangGraph state machine performance and hypothesis accuracy before live deployment.
 
 ## 8. 🏢 Multi-Account & Portfolio Scenario Isolation
-* **Deskripsi:** Mendukung pengelolaan banyak akun (*multi-account*) dan sub-portofolio dengan skenario independen. 
-* **Implementasi:** Arsitektur database kita sudah 80% siap karena memiliki relasi `account_id` pada setiap tabel (`accounts`, `hypotheses`, `audit_logs`, `post_mortems`). Pengguna dapat membuat akun terpisah untuk skenario *High-Risk Speculative Crypto* dan *Low-Risk Retirement Stock Portfolio*.
-* **Fitur UI:** *Account Switcher Dropdown* pada header terminal untuk memilah analitik & riwayat transaksi per akun secara terpisah.
+* **Description:** Support managing multiple accounts and sub-portfolios with independent risk scenarios.
+* **Implementation:** The database schema is ready with `account_id` foreign keys across all tables (`accounts`, `hypotheses`, `audit_logs`, `post_mortems`). Users can isolate high-risk speculative crypto portfolios from low-risk conservative stock portfolios.
+* **UI Feature:** An "Account Switcher" dropdown in the terminal header to filter analytics and trade histories per account.
 
 ## 9. 🧠 Multi-Strategy Archetypes (Aggressive, Swing, Conservative)
-* **Deskripsi:** Menyediakan pilihan kepribadian & profil risiko strategi bagi agen sebelum memicu transaksi:
-  * ⚡ **Scalping Mode (Agresif):** Timeframe 1-5 menit, Stop Loss sangat ketat (0.5–1%), frekuensi audit sub-menit.
-  * 📈 **Swing Trading Mode (Standar):** Timeframe H1–1Day, Risk-to-Reward 2:1+, frekuensi audit 15 menit.
-  * 🛡️ **Conservative / Long-Term Mode:** Timeframe Weekly, Stop Loss lebar (5–10%), fokus pada akumulasi aset & fundamental, frekuensi audit harian.
-* **Implementasi:** Parameter `strategy_profile` disuntikkan ke dalam *System Prompt* Gemini pada Phase 1 & Phase 3, sehingga LLM secara otomatis menyesuaikan kalkulasi Stop Loss, Target Profit, dan Invalidation Triggers sesuai kepribadian mode yang dipilih.
-
+* **Description:** Offer selectable strategy personas and risk profiles prior to triggering trades:
+  * ⚡ **Scalping Mode (Aggressive):** 1-5 minute timeframe, tight stop loss (0.5–1%), sub-minute audit frequency.
+  * 📈 **Swing Trading Mode (Standard):** H1–1Day timeframe, 2:1+ risk-to-reward ratio, 15-minute audit frequency.
+  * 🛡️ **Conservative / Long-Term Mode:** Weekly timeframe, wider stop loss (5–10%), focus on fundamentals & accumulation, daily audit frequency.
+* **Implementation:** Inject `strategy_profile` parameters into the Gemini system prompt in Phase 1 & Phase 3 to dynamically adapt risk tolerance, price targets, and invalidation triggers.

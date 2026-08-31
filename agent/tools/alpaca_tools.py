@@ -16,6 +16,10 @@ from agent.config import ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_BASE_URL
 # Alpaca market data endpoint (separate from the broker endpoint)
 _DATA_URL = "https://data.alpaca.markets"
 
+# Normalise broker URL — strip any trailing /v2 the user may have included in .env
+# so we always append /v2/... exactly once when constructing endpoint paths.
+_BROKER_URL = ALPACA_BASE_URL.rstrip("/").removesuffix("/v2")
+
 _HEADERS = {
     "APCA-API-KEY-ID": ALPACA_API_KEY,
     "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY,
@@ -82,7 +86,7 @@ def create_order(
         payload["limit_price"] = str(limit_price)
 
     resp = httpx.post(
-        f"{ALPACA_BASE_URL}/v2/orders",
+        f"{_BROKER_URL}/v2/orders",
         headers=_HEADERS,
         json=payload,
         timeout=15,
@@ -99,7 +103,7 @@ def get_positions() -> list[dict]:
     Used by the Phase 3 audit worker.
     """
     resp = httpx.get(
-        f"{ALPACA_BASE_URL}/v2/positions",
+        f"{_BROKER_URL}/v2/positions",
         headers=_HEADERS,
         timeout=15,
     )
@@ -111,7 +115,7 @@ def get_position(symbol: str) -> dict | None:
     """Returns the open position for a specific symbol, or None if not held."""
     try:
         resp = httpx.get(
-            f"{ALPACA_BASE_URL}/v2/positions/{symbol}",
+            f"{_BROKER_URL}/v2/positions/{symbol}",
             headers=_HEADERS,
             timeout=15,
         )
@@ -131,7 +135,7 @@ def close_position(symbol: str) -> dict:
     Called exclusively by Phase 4 when audit_verdict == "CLOSE".
     """
     resp = httpx.delete(
-        f"{ALPACA_BASE_URL}/v2/positions/{symbol}",
+        f"{_BROKER_URL}/v2/positions/{symbol}",
         headers=_HEADERS,
         timeout=15,
     )
@@ -147,7 +151,7 @@ def get_account() -> dict:
     Used by the FastAPI /portfolio endpoint.
     """
     resp = httpx.get(
-        f"{ALPACA_BASE_URL}/v2/account",
+        f"{_BROKER_URL}/v2/account",
         headers=_HEADERS,
         timeout=15,
     )

@@ -71,14 +71,14 @@
 
 **Goal:** Send a paper trade order to Alpaca and lock the hypothesis.
 
-- [ ] Extend `agent/tools/alpaca_tools.py`:
-  - `create_order(symbol, qty, side, order_type)` — places an order via Alpaca API
-- [ ] Implement `agent/nodes/phase2_execution.py`:
-  - Only runs if Phase 1 hypothesis status is `PENDING` (validated)
-  - Call `create_order` with parameters derived from the hypothesis
-  - On Alpaca confirmation, extract `alpaca_order_id`
-  - Update `hypotheses` row: set `alpaca_order_id` and status → `ACTIVE`
-- [ ] Unit test: confirm an order appears in Alpaca paper dashboard and the DB row status is `ACTIVE`
+- [x] Extend `agent/tools/alpaca_tools.py`:
+  - `create_order(symbol, qty, side, order_type)` — places an order via Alpaca API ✅
+- [x] Implement `agent/nodes/phase2_execution.py`:
+  - Guard: validates status == PENDING before executing
+  - Calls `create_order` with params from hypothesis_data
+  - Extracts `alpaca_order_id` from Alpaca response
+  - Updates hypothesis: status → ACTIVE
+- [x] Unit test: order appeared in Alpaca paper dashboard, DB status = ACTIVE ✅
 
 ---
 
@@ -86,17 +86,17 @@
 
 **Goal:** Background worker that audits all ACTIVE positions on a schedule.
 
-- [ ] Extend `agent/tools/alpaca_tools.py`:
-  - `get_positions()` — fetches all open positions with unrealized PnL
-- [ ] Implement `agent/nodes/phase3_audit.py`:
-  - Query `hypotheses` table for all rows with status `ACTIVE`
-  - For each: fetch latest market snapshot from Alpaca
-  - Build an audit prompt with the original hypothesis + current market state
-  - LLM returns verdict: `HOLD` or `CLOSE` with reasoning
-  - Persist result to `audit_logs` table
-  - If `CLOSE` verdict → transition state to trigger Phase 4
-- [ ] Implement `agent/worker.py` — scheduler loop (APScheduler) running Phase 3 every 15 minutes
-- [ ] Test: run the worker, verify `audit_logs` rows are created with correct verdicts
+- [x] Extend `agent/tools/alpaca_tools.py`:
+  - `get_positions()`, `get_position(symbol)` — fetches positions with unrealized PnL ✅
+- [x] Implement `agent/nodes/phase3_audit.py`:
+  - Fetches hypothesis from DB (targets + triggers)
+  - Fetches live position snapshot from Alpaca
+  - Fetches recent OHLCV bars for context
+  - LLM returns verdict: `HOLD` or `CLOSE`
+  - Persists to `audit_logs` table (llm_verdict, reasoning_summary, market_snapshot)
+  - Returns `audit_verdict` in state → graph routes to Phase 4 if CLOSE
+- [ ] Implement `agent/worker.py` — APScheduler loop running Phase 3 every 15 minutes
+- [x] Test: audit_logs row created with verdict CLOSE ✅
 
 ---
 
@@ -104,19 +104,18 @@
 
 **Goal:** Close the position, synthesize learnings, and store embeddings.
 
-- [ ] Extend `agent/tools/alpaca_tools.py`:
-  - `close_position(symbol)` — closes an open position
-- [ ] Implement `agent/nodes/phase4_postmortem.py`:
-  - Call `close_position` on Alpaca
-  - Update `hypotheses` status → `CLOSED`
-  - Gather: original hypothesis, all audit logs, final PnL from Alpaca
-  - LLM synthesizes a post-mortem report (`lesson_learned` text)
-  - Embed the `lesson_learned` text using the configured embedding model
-  - Store in `post_mortems` table with the `embedding` vector column
-- [ ] Implement `agent/memory.py`:
-  - `search_similar_post_mortems(query_text, top_k=3)` — calls `match_post_mortems()` RPC in Supabase
-- [ ] Integrate memory retrieval into Phase 1: before formulating a hypothesis, retrieve past relevant lessons and inject them into the LLM prompt
-- [ ] Test: complete a full cycle, verify the `post_mortems` row with embedding is saved
+- [x] Extend `agent/tools/alpaca_tools.py`:
+  - `close_position(symbol)` — closes an open position ✅
+- [x] Implement `agent/nodes/phase4_postmortem.py`:
+  - Calls `close_position` on Alpaca
+  - Updates `hypotheses` status → CLOSED
+  - Gathers: original hypothesis + all audit logs + PnL from Alpaca
+  - LLM synthesizes `lesson_learned` text
+  - Embeds lesson with `gemini-embedding-001` (3072 dims)
+  - Stores in `post_mortems` table with embedding vector
+- [x] `agent/memory.py` already implemented in Step 3 ✅
+- [x] Memory retrieval integrated into Phase 1 (inject past lessons into LLM prompt) ✅
+- [x] Test: full cycle complete, post_mortems row with embedding saved ✅
 
 ---
 
@@ -124,18 +123,15 @@
 
 **Goal:** Expose agent actions and data as HTTP endpoints for the frontend.
 
-- [ ] Implement `agent/api/main.py` — FastAPI app entry point with CORS middleware
-- [ ] Implement route files in `agent/api/routes/`:
-  - `hypotheses.py`:
-    - `POST /hypotheses/trigger` — trigger a new hypothesis for a given symbol
-    - `GET /hypotheses` — list all hypotheses with status
-    - `GET /hypotheses/{id}` — detail + audit log timeline
-  - `post_mortems.py`:
-    - `GET /post-mortems` — list all post-mortems
-  - `portfolio.py`:
-    - `GET /portfolio` — proxy Alpaca positions & account balance
-  - `worker.py`:
-    - `POST /worker/start` & `POST /worker/stop` — control the monitoring loop
+- [x] Implement `agent/api/main.py` — FastAPI app with CORS + lifespan worker ✅
+- [x] Routes implemented directly in `main.py`:
+  - `POST /trade/start` — Phase 1+2: formulate + execute
+  - `GET  /trade/hypotheses` — list all hypotheses
+  - `GET  /trade/{id}` — hypothesis detail + audit log timeline
+  - `POST /trade/{id}/audit` — manual audit trigger (Phase 3)
+  - `GET  /portfolio` — live Alpaca account + positions
+  - `GET  /memory` — list all post-mortems
+- [x] `agent/worker.py` — APScheduler loop, starts via FastAPI lifespan ✅
 - [ ] Test all endpoints with a REST client (Bruno / Postman / curl)
 
 ---

@@ -3,7 +3,7 @@ db.py — Supabase client singleton + CRUD helpers for all 4 tables.
 
 Interaction pattern:
   - All nodes (phase1–4) call these helpers to read/write the database.
-  - Uses the SERVICE ROLE KEY so it can bypass RLS from the backend.
+  - Uses the SECRET KEY so it can bypass RLS from the backend.
   - memory.py also calls search_similar_post_mortems() here.
 """
 from supabase import create_client, Client

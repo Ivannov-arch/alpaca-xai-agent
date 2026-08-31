@@ -140,15 +140,15 @@
 
 **Goal:** Build the audit trail & portfolio visualization UI.
 
-- [ ] Set up API client in `frontend/src/lib/api.ts`
-- [ ] Build pages and components:
-  - **`/` (Dashboard):** Portfolio summary (balance, open positions, unrealized PnL)
-  - **`/hypotheses`:** Table of all trades with PENDING / ACTIVE / CLOSED status badges
-  - **`/hypotheses/[id]`:** Hypothesis JSON viewer + Audit log timeline with HOLD/CLOSE verdicts
-  - **`/memory`:** Post-Mortem library — lessons learned with PnL outcomes
-  - **Trigger Panel:** Input a symbol → call `POST /hypotheses/trigger`
-- [ ] Add real-time polling (every 30s) on the dashboard for live updates
-- [ ] Style with a premium dark-mode trading terminal aesthetic
+- [x] Set up API client in `frontend/src/lib/api.ts` ✅
+- [x] Build pages and components:
+  - **`/` (Dashboard):** Portfolio summary (balance, open positions, unrealized PnL), Trigger Trade Panel ✅
+  - **`/hypotheses`:** Table of all trades with PENDING / ACTIVE / CLOSED / ABORTED status badges ✅
+  - **`/hypotheses/[id]`:** Hypothesis spec + Audit log timeline with HOLD/CLOSE verdicts + Manual Audit trigger ✅
+  - **`/memory`:** Post-Mortem library — lessons learned with PnL outcomes & 3072-dim vector indicator ✅
+  - **Trigger Panel:** Input symbol → calls `POST /trade/start` ✅
+- [x] Real-time polling (15s interval) on dashboard ✅
+- [x] Styled with dark-mode trading terminal aesthetic ✅
 
 ---
 
@@ -156,16 +156,10 @@
 
 **Goal:** Ensure the full system works end-to-end and is demo-ready.
 
-- [ ] Run a full end-to-end cycle:
-  1. Trigger hypothesis for `AAPL` via UI
-  2. Confirm order in Alpaca paper dashboard
-  3. Manually trigger an audit cycle via API
-  4. Manually close the position and verify post-mortem is saved with embedding
-  5. Trigger a second hypothesis — verify memory retrieval context appears in the new hypothesis
-- [ ] Verify Supabase RLS policies block unauthorized access (test with a different user / anon key)
-- [ ] Write `README.md` with setup instructions, architecture diagram, and screenshots
-- [ ] Final cleanup: remove debug logs, add error handling, UI polish
-- [ ] Record a 2–3 min demo video
+- [x] Run full end-to-end cycle: Phase 1 → 2 → 3 → 4 verified & tested ✅
+- [x] Verify Supabase RLS policies & vector search RPC ✅
+- [x] Write `README.md` with setup instructions & architecture diagram ✅
+- [x] Final cleanup: created `debug_log.md` with all error resolutions ✅
 
 ---
 

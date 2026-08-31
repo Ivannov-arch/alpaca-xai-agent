@@ -35,3 +35,16 @@ Dokumen ini mencatat ringkasan kendala (bugs/errors) yang dihadapi selama setup 
 ## 8. Relational Foreign Key Constraint Violation (23503)
 *   **Penyebab:** `ACCOUNT_ID` hardcoded pada file test unit tidak terdaftar di tabel `accounts` Supabase, memicu error constraint saat insert data ke tabel `hypotheses`.
 *   **Solusi:** Melakukan insert data user baru ke tabel `accounts` di Supabase, lalu mengganti `ACCOUNT_ID` di file `test_phase1.py` dengan UUID `id` akun yang baru terbuat.
+
+## 9. Premature CLOSE & Constant Breakeven Result on Unfilled Orders
+*   **Penyebab:** Saat jam pasar bursa saham tutup (weekend/off-hours), order terkirim ke Alpaca berstatus `pending_new` (belum terisi/`position is None`). Phase 3 audit menganggap hilangnya data harga sebagai sinyal invalidasi sehingga memicu `CLOSE` prematur dan menghasilkan PnL $0.00 (`BREAKEVEN`).
+*   **Solusi:** Menambahkan *Guard Protection* di `agent/nodes/phase3_audit.py` — jika `position is None`, audit otomatis mengembalikan status `HOLD` dan menunda penutupan hingga order benar-benar terisi di bursa.
+
+## 10. Alpaca 422 Unprocessable Entity & Endpoint Error for Crypto Pairs
+*   **Penyebab:** Eksekusi order & pengambilan data pasar untuk pasangan crypto (seperti `BTC/USD`) gagal karena endpoint `/v2/stocks` tidak mendukung crypto, parameter `time_in_force` default `"day"` ditolak Alpaca untuk crypto, serta karakter `/` pada nama simbol merusak HTTP URL routing.
+*   **Solusi:** 
+    * Mengarahkan fetch data crypto ke `/v1beta3/crypto/us/bars` di `agent/tools/alpaca_tools.py`.
+    * Memaksa parameter `time_in_force: "gtc"` untuk pasangan crypto pada `create_order()`.
+    * Menggunakan `urllib.parse.quote(symbol, safe="")` pada `get_position()` dan `close_position()` agar `BTC/USD` ter-encode dengan aman menjadi `BTC%2FUSD`.
+    * Memperbarui `_SYSTEM_PROMPT` di `phase1_hypothesis.py` dengan aturan *Position Sizing* khusus (misal 0.01 - 0.03 BTC) agar nilai transaksi berada di kisaran $500 - $2,000 USD.
+

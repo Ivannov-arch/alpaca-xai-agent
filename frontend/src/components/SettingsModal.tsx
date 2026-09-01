@@ -26,6 +26,19 @@ export default function SettingsModal() {
   const [saveAsAccount, setSaveAsAccount] = useState(true);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
+  const reloadAccounts = () => {
+    const list = getSavedAccounts();
+    const active = getActiveAccount();
+    setSavedAccounts(list);
+    setActiveAccState(active);
+    if (active) {
+      setAccountName(active.name);
+      setApiKey(active.apiKey);
+      setSecretKey(active.secretKey);
+      setStrategyProfile(active.strategyProfile);
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
     reloadAccounts();

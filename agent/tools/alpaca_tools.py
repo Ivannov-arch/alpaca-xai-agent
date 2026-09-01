@@ -21,9 +21,17 @@ _DATA_URL = "https://data.alpaca.markets"
 _BROKER_URL = ALPACA_BASE_URL.rstrip("/").removesuffix("/v2")
 
 def get_alpaca_headers(api_key: str | None = None, secret_key: str | None = None) -> dict:
-    """Returns HTTP headers for Alpaca, defaulting to env vars if custom keys not provided."""
-    key = api_key if api_key and api_key.strip() else ALPACA_API_KEY
-    secret = secret_key if secret_key and secret_key.strip() else ALPACA_SECRET_KEY
+    """Returns HTTP headers for Alpaca, defaulting to env vars if custom keys not provided or invalid."""
+    key = (
+        api_key.strip()
+        if (api_key and api_key.strip() and api_key.strip() not in ("undefined", "null"))
+        else ALPACA_API_KEY
+    )
+    secret = (
+        secret_key.strip()
+        if (secret_key and secret_key.strip() and secret_key.strip() not in ("undefined", "null"))
+        else ALPACA_SECRET_KEY
+    )
     return {
         "APCA-API-KEY-ID": key,
         "APCA-API-SECRET-KEY": secret,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { scanWatchlist } from "@/lib/api";
+import { scanWatchlist, getActiveAccount } from "@/lib/api";
 
 const DEFAULT_WATCHLIST = [
   "BTC/USD",
@@ -41,8 +41,11 @@ export default function WatchlistScanner({ onScanComplete }: { onScanComplete?: 
     setIsScanning(true);
     setScanResult(null);
 
+    const activeAcc = getActiveAccount();
+    const strategy = activeAcc?.strategyProfile || "SWING";
+
     try {
-      const res = await scanWatchlist(selectedSymbols);
+      const res = await scanWatchlist(selectedSymbols, strategy);
       setScanResult(res);
       if (onScanComplete) onScanComplete();
     } catch (e: any) {

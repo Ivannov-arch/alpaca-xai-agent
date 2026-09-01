@@ -61,11 +61,13 @@ app.add_middleware(
 class StartTradeRequest(BaseModel):
     account_id: str
     symbol: str
+    strategy_profile: str = "SWING"
 
 
 class ScanWatchlistRequest(BaseModel):
     account_id: str
     symbols: list[str]
+    strategy_profile: str = "SWING"
 
 
 # ── Routes ────────────────────────────────────────────────────────────
@@ -85,6 +87,7 @@ async def start_trade(req: StartTradeRequest, background_tasks: BackgroundTasks)
     initial_state = {
         "symbol": req.symbol,
         "account_id": req.account_id,
+        "strategy_profile": req.strategy_profile,
         "hypothesis_id": None,
         "hypothesis_data": None,
         "alpaca_order_id": None,
@@ -175,6 +178,7 @@ async def scan_watchlist(req: ScanWatchlistRequest):
         initial_state = {
             "symbol": symbol.strip().upper(),
             "account_id": req.account_id,
+            "strategy_profile": req.strategy_profile,
             "hypothesis_id": None,
             "hypothesis_data": None,
             "alpaca_order_id": None,

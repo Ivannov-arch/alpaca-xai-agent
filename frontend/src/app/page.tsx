@@ -6,6 +6,7 @@ import {
   fetchPortfolio,
   fetchHypotheses,
   triggerTrade,
+  getActiveAccount,
   PortfolioData,
   Hypothesis,
 } from "@/lib/api";
@@ -46,10 +47,13 @@ export default function Dashboard() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    const activeAcc = getActiveAccount();
+    const strategy = activeAcc?.strategyProfile || "SWING";
+
     try {
-      const result = await triggerTrade(symbolInput.trim().toUpperCase());
+      const result = await triggerTrade(symbolInput.trim().toUpperCase(), strategy);
       setSuccessMsg(
-        `Hypothesis created! ID: ${result.hypothesis_id} | Status: ${result.status}`
+        `Hypothesis created (${strategy} mode)! ID: ${result.hypothesis_id} | Status: ${result.status}`
       );
       setSymbolInput("BTC/USD");
       await loadData();

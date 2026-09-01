@@ -60,8 +60,68 @@ export interface PortfolioData {
   }>;
 }
 
+export interface SavedAccount {
+  id: string;
+  name: string;
+  apiKey: string;
+  secretKey: string;
+  strategyProfile: "SCALPING" | "SWING" | "CONSERVATIVE";
+}
+
+export function getSavedAccounts(): SavedAccount[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem("xai_saved_accounts");
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getActiveAccount(): SavedAccount | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("xai_active_account");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setActiveAccount(acc: SavedAccount | null) {
+  if (typeof window === "undefined") return;
+  if (acc) {
+    localStorage.setItem("xai_active_account", JSON.stringify(acc));
+    setCustomAlpacaKeys(acc.apiKey, acc.secretKey);
+  } else {
+    localStorage.removeItem("xai_active_account");
+    setCustomAlpacaKeys("", "");
+  }
+}
+
+export function saveAccount(acc: SavedAccount) {
+  if (typeof window === "undefined") return;
+  const list = getSavedAccounts().filter((a) => a.id !== acc.id);
+  list.push(acc);
+  localStorage.setItem("xai_saved_accounts", JSON.stringify(list));
+  setActiveAccount(acc);
+}
+
+export function removeAccount(id: string) {
+  if (typeof window === "undefined") return;
+  const list = getSavedAccounts().filter((a) => a.id !== id);
+  localStorage.setItem("xai_saved_accounts", JSON.stringify(list));
+  const active = getActiveAccount();
+  if (active && active.id === id) {
+    setActiveAccount(null);
+  }
+}
+
 export function getCustomAlpacaKeys(): { key?: string; secret?: string } {
   if (typeof window === "undefined") return {};
+  const active = getActiveAccount();
+  if (active) return { key: active.apiKey, secret: active.secretKey };
+
   const key = localStorage.getItem("xai_alpaca_key") || undefined;
   const secret = localStorage.getItem("xai_alpaca_secret") || undefined;
   return { key, secret };
@@ -92,12 +152,13 @@ export async function fetchPortfolio(accountId: string = DEV_ACCOUNT_ID): Promis
 
 export async function scanWatchlist(
   symbols: string[],
+  strategyProfile: string = "SWING",
   accountId: string = DEV_ACCOUNT_ID
 ): Promise<{ scanned_count: number; results: Array<{ symbol: string; status: string; hypothesis_id?: string; error?: string }> }> {
   const res = await fetch(`${API_BASE_URL}/trade/scan-watchlist`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ symbols, account_id: accountId }),
+    body: JSON.stringify({ symbols, strategy_profile: strategyProfile, account_id: accountId }),
   });
   if (!res.ok) {
     const err = await res.json();
@@ -118,11 +179,15 @@ export async function fetchTradeDetail(hypothesisId: string): Promise<{ hypothes
   return res.json();
 }
 
-export async function triggerTrade(symbol: string, accountId: string = DEV_ACCOUNT_ID): Promise<{ hypothesis_id: string; status: string; alpaca_order_id?: string }> {
+export async function triggerTrade(
+  symbol: string,
+  strategyProfile: string = "SWING",
+  accountId: string = DEV_ACCOUNT_ID
+): Promise<{ hypothesis_id: string; status: string; alpaca_order_id?: string }> {
   const res = await fetch(`${API_BASE_URL}/trade/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ symbol, account_id: accountId }),
+    body: JSON.stringify({ symbol, strategy_profile: strategyProfile, account_id: accountId }),
   });
   if (!res.ok) {
     const err = await res.json();

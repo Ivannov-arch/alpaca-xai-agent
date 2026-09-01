@@ -56,20 +56,38 @@ class HypothesisSchema(BaseModel):
 
 # ── Prompt builders ───────────────────────────────────────────────────
 
-_SYSTEM_PROMPT = """You are an expert quantitative trader and risk manager.
-Your job is to analyze market data and produce a rigorous, structured trade hypothesis.
+def _get_system_prompt(strategy_profile: str | None = "SWING") -> str:
+    profile = (strategy_profile or "SWING").upper()
 
-Rules you MUST follow:
+    if profile == "SCALPING":
+        persona = """You are an AGGRESSIVE SCALPER. Your objective is quick intraday momentum setups with tight risk.
+Rules:
+- Stop Loss MUST be tight (0.5% to 1.5% from entry).
+- Target Price should target immediate momentum resistance/support (1.5:1 to 2:1 R:R).
+- Invalidation triggers must focus on 1-5 minute structural breaches."""
+    elif profile == "CONSERVATIVE":
+        persona = """You are a CONSERVATIVE LONG-TERM INVESTOR. Your objective is high-conviction accumulation on deep pullbacks.
+Rules:
+- Stop Loss should be wide and structural (5% to 10% below entry).
+- Target Price should aim for major historical swing highs (3:1+ R:R).
+- Invalidation triggers must focus on multi-week macro trend changes."""
+    else:
+        persona = """You are a BALANCED SWING TRADER. Your objective is capturing 1-5 day trend expansions.
+Rules:
+- Stop Loss should be realistic (2% to 4% below entry).
+- Target Price must offer at least a 2:1 reward-to-risk ratio.
+- Invalidation triggers must focus on key daily price level breaches."""
+
+    return f"""{persona}
+
+General Rules:
 1. You must provide a clear, evidence-based thesis — not vague generalities.
 2. Position sizing (`qty`): target position value around $500 - $2,000 USD.
    - For BTC/USD: qty between 0.01 and 0.03 BTC.
    - For ETH/USD: qty between 0.1 and 0.5 ETH.
    - For SOL/USD: qty between 2 and 10 SOL.
    - For Stocks (e.g. AAPL, NVDA): qty between 5 and 50 shares.
-3. The stop_loss_price must be defined and realistic (max 3-5% risk).
-4. The target_price must offer at least a 2:1 reward-to-risk ratio vs the stop.
-5. You must provide at least 2 specific, measurable invalidation triggers.
-6. Respond ONLY with the structured JSON — no extra text.
+3. Respond ONLY with the structured JSON — no extra text.
 """
 
 
@@ -130,8 +148,9 @@ Produce a complete HypothesisSchema JSON for {symbol}.
         # ── 4. LLM call with structured output ─────────────────────
         llm = get_llm()
         structured_llm = llm.with_structured_output(HypothesisSchema)
+        system_prompt_text = _get_system_prompt(state.get("strategy_profile"))
         hypothesis: HypothesisSchema = await structured_llm.ainvoke([
-            SystemMessage(content=_SYSTEM_PROMPT),
+            SystemMessage(content=system_prompt_text),
             HumanMessage(content=user_prompt),
         ])
 

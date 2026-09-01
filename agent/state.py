@@ -20,6 +20,7 @@ class AgentState(TypedDict):
     # ── Inputs ──────────────────────────────────────────────────────
     symbol: str           # e.g. "AAPL"
     account_id: str       # UUID from the accounts table
+    strategy_profile: Optional[str]  # "SCALPING", "SWING", or "CONSERVATIVE"
 
     # ── Phase 1 outputs ─────────────────────────────────────────────
     hypothesis_id: Optional[str]    # UUID assigned after DB insert

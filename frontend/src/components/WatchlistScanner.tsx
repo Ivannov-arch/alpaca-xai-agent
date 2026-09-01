@@ -58,10 +58,10 @@ export default function WatchlistScanner({ onScanComplete }: { onScanComplete?: 
         <div>
           <h2 className="text-sm font-semibold text-purple-400 uppercase tracking-wider flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-            Pilihan Investasi Terpilih (Watchlist & Auto-Scanner)
+            Selected Investment Options (Watchlist & Auto-Scanner)
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Pilih daftar aset crypto / saham favorit Anda untuk dianalisis & dieksekusi otomatis oleh AI Agent.
+            Select a list of your favorite crypto assets/stocks for analysis and automated execution by the AI ​​Agent
           </p>
         </div>
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
+import SettingsModal from "@/components/SettingsModal";
 
 const geistMono = Geist_Mono({
   subsets: ["latin"],
@@ -58,6 +59,7 @@ export default function RootLayout({
             </nav>
 
             <div className="flex items-center space-x-3 text-xs text-slate-400">
+              <SettingsModal />
               <span className="flex items-center space-x-1.5 bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 px-2.5 py-1 rounded-full">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                 <span>Worker Active</span>

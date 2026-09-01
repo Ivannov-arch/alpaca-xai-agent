@@ -9,6 +9,7 @@ import {
   PortfolioData,
   Hypothesis,
 } from "@/lib/api";
+import WatchlistScanner from "@/components/WatchlistScanner";
 
 export default function Dashboard() {
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
@@ -155,6 +156,9 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Selected Investment Watchlist & Auto-Scanner Bar */}
+      <WatchlistScanner onScanComplete={loadData} />
 
       {/* Open Positions Section */}
       <div className="terminal-card p-6">

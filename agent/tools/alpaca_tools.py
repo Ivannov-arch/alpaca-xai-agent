@@ -20,10 +20,16 @@ _DATA_URL = "https://data.alpaca.markets"
 # so we always append /v2/... exactly once when constructing endpoint paths.
 _BROKER_URL = ALPACA_BASE_URL.rstrip("/").removesuffix("/v2")
 
-_HEADERS = {
-    "APCA-API-KEY-ID": ALPACA_API_KEY,
-    "APCA-API-SECRET-KEY": ALPACA_SECRET_KEY,
-}
+def get_alpaca_headers(api_key: str | None = None, secret_key: str | None = None) -> dict:
+    """Returns HTTP headers for Alpaca, defaulting to env vars if custom keys not provided."""
+    key = api_key if api_key and api_key.strip() else ALPACA_API_KEY
+    secret = secret_key if secret_key and secret_key.strip() else ALPACA_SECRET_KEY
+    return {
+        "APCA-API-KEY-ID": key,
+        "APCA-API-SECRET-KEY": secret,
+    }
+
+_HEADERS = get_alpaca_headers()
 
 
 # ── Market Data ───────────────────────────────────────────────────────
@@ -77,6 +83,8 @@ def create_order(
     order_type: str = "market",
     time_in_force: str = "gtc",
     limit_price: float | None = None,
+    api_key: str | None = None,
+    secret_key: str | None = None,
 ) -> dict:
     """
     Places a paper trading order on Alpaca.
@@ -97,9 +105,10 @@ def create_order(
     if order_type == "limit" and limit_price is not None:
         payload["limit_price"] = str(limit_price)
 
+    headers = get_alpaca_headers(api_key, secret_key)
     resp = httpx.post(
         f"{_BROKER_URL}/v2/orders",
-        headers=_HEADERS,
+        headers=headers,
         json=payload,
         timeout=15,
     )
@@ -109,28 +118,30 @@ def create_order(
 
 # ── Position Observation ──────────────────────────────────────────────
 
-def get_positions() -> list[dict]:
+def get_positions(api_key: str | None = None, secret_key: str | None = None) -> list[dict]:
     """
     Returns all currently open positions with unrealized PnL.
-    Used by the Phase 3 audit worker.
+    Used by the Phase 3 audit worker and /portfolio endpoint.
     """
+    headers = get_alpaca_headers(api_key, secret_key)
     resp = httpx.get(
         f"{_BROKER_URL}/v2/positions",
-        headers=_HEADERS,
+        headers=headers,
         timeout=15,
     )
     resp.raise_for_status()
     return resp.json()
 
 
-def get_position(symbol: str) -> dict | None:
+def get_position(symbol: str, api_key: str | None = None, secret_key: str | None = None) -> dict | None:
     """Returns the open position for a specific symbol, or None if not held."""
     import urllib.parse
     clean_sym = urllib.parse.quote(symbol, safe="")
+    headers = get_alpaca_headers(api_key, secret_key)
     try:
         resp = httpx.get(
             f"{_BROKER_URL}/v2/positions/{clean_sym}",
-            headers=_HEADERS,
+            headers=headers,
             timeout=15,
         )
         resp.raise_for_status()
@@ -143,16 +154,17 @@ def get_position(symbol: str) -> dict | None:
 
 # ── Position Close ────────────────────────────────────────────────────
 
-def close_position(symbol: str) -> dict:
+def close_position(symbol: str, api_key: str | None = None, secret_key: str | None = None) -> dict:
     """
     Closes an open position for the given symbol at market price.
     Called exclusively by Phase 4 when audit_verdict == "CLOSE".
     """
     import urllib.parse
     clean_sym = urllib.parse.quote(symbol, safe="")
+    headers = get_alpaca_headers(api_key, secret_key)
     resp = httpx.delete(
         f"{_BROKER_URL}/v2/positions/{clean_sym}",
-        headers=_HEADERS,
+        headers=headers,
         timeout=15,
     )
     resp.raise_for_status()
@@ -161,14 +173,15 @@ def close_position(symbol: str) -> dict:
 
 # ── Account Info ──────────────────────────────────────────────────────
 
-def get_account() -> dict:
+def get_account(api_key: str | None = None, secret_key: str | None = None) -> dict:
     """
-    Returns account info including cash, portfolio_value, and buying_power.
+    Returns Alpaca account metadata (equity, cash, buying power).
     Used by the FastAPI /portfolio endpoint.
     """
+    headers = get_alpaca_headers(api_key, secret_key)
     resp = httpx.get(
         f"{_BROKER_URL}/v2/account",
-        headers=_HEADERS,
+        headers=headers,
         timeout=15,
     )
     resp.raise_for_status()

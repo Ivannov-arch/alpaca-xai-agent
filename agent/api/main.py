@@ -13,10 +13,7 @@ Endpoints exposed to the Next.js frontend:
 All endpoints require an `account_id` header or query param for scoping.
 The worker scheduler starts automatically via FastAPI lifespan.
 """
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Header
 
 from agent.graph import trade_graph, audit_graph
 from agent.db import (
@@ -61,6 +58,11 @@ app.add_middleware(
 class StartTradeRequest(BaseModel):
     account_id: str
     symbol: str
+
+
+class ScanWatchlistRequest(BaseModel):
+    account_id: str
+    symbols: list[str]
 
 
 # ── Routes ────────────────────────────────────────────────────────────
@@ -159,12 +161,54 @@ async def manual_audit(hypothesis_id: str):
     }
 
 
+@app.post("/trade/scan-watchlist")
+async def scan_watchlist(req: ScanWatchlistRequest):
+    """
+    Scans a list of user-selected investment symbols (watchlist).
+    Formulates hypotheses and auto-executes trades for valid opportunities.
+    """
+    results = []
+    for symbol in req.symbols:
+        initial_state = {
+            "symbol": symbol.strip().upper(),
+            "account_id": req.account_id,
+            "hypothesis_id": None,
+            "hypothesis_data": None,
+            "alpaca_order_id": None,
+            "audit_verdict": None,
+            "pnl_percentage": None,
+            "lesson_learned": None,
+            "status": None,
+            "error": None,
+        }
+        try:
+            final_state = await trade_graph.ainvoke(initial_state)
+            results.append({
+                "symbol": symbol,
+                "status": final_state.get("status"),
+                "hypothesis_id": final_state.get("hypothesis_id"),
+                "alpaca_order_id": final_state.get("alpaca_order_id"),
+                "error": final_state.get("error"),
+            })
+        except Exception as e:
+            results.append({
+                "symbol": symbol,
+                "status": "FAILED",
+                "error": str(e),
+            })
+    return {"account_id": req.account_id, "scanned_count": len(req.symbols), "results": results}
+
+
 @app.get("/portfolio")
-async def get_portfolio(account_id: str):
-    """Returns live Alpaca account balance and all open positions."""
+async def get_portfolio(
+    account_id: str,
+    x_alpaca_key: str | None = Header(None, alias="X-Alpaca-Key"),
+    x_alpaca_secret: str | None = Header(None, alias="X-Alpaca-Secret"),
+):
+    """Returns live Alpaca account balance and all open positions (supports custom API keys via headers)."""
     try:
-        account = get_account()
-        positions = get_positions()
+        account = get_account(api_key=x_alpaca_key, secret_key=x_alpaca_secret)
+        positions = get_positions(api_key=x_alpaca_key, secret_key=x_alpaca_secret)
         return {
             "account": {
                 "portfolio_value": account.get("portfolio_value"),

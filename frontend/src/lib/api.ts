@@ -60,9 +60,49 @@ export interface PortfolioData {
   }>;
 }
 
+export function getCustomAlpacaKeys(): { key?: string; secret?: string } {
+  if (typeof window === "undefined") return {};
+  const key = localStorage.getItem("xai_alpaca_key") || undefined;
+  const secret = localStorage.getItem("xai_alpaca_secret") || undefined;
+  return { key, secret };
+}
+
+export function setCustomAlpacaKeys(key: string, secret: string) {
+  if (typeof window === "undefined") return;
+  if (key) localStorage.setItem("xai_alpaca_key", key);
+  else localStorage.removeItem("xai_alpaca_key");
+
+  if (secret) localStorage.setItem("xai_alpaca_secret", secret);
+  else localStorage.removeItem("xai_alpaca_secret");
+}
+
 export async function fetchPortfolio(accountId: string = DEV_ACCOUNT_ID): Promise<PortfolioData> {
-  const res = await fetch(`${API_BASE_URL}/portfolio?account_id=${accountId}`, { cache: "no-store" });
+  const { key, secret } = getCustomAlpacaKeys();
+  const headers: Record<string, string> = {};
+  if (key) headers["X-Alpaca-Key"] = key;
+  if (secret) headers["X-Alpaca-Secret"] = secret;
+
+  const res = await fetch(`${API_BASE_URL}/portfolio?account_id=${accountId}`, {
+    cache: "no-store",
+    headers,
+  });
   if (!res.ok) throw new Error("Failed to fetch portfolio");
+  return res.json();
+}
+
+export async function scanWatchlist(
+  symbols: string[],
+  accountId: string = DEV_ACCOUNT_ID
+): Promise<{ scanned_count: number; results: Array<{ symbol: string; status: string; hypothesis_id?: string; error?: string }> }> {
+  const res = await fetch(`${API_BASE_URL}/trade/scan-watchlist`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ symbols, account_id: accountId }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.detail || "Failed to scan watchlist");
+  }
   return res.json();
 }
 

@@ -37,8 +37,21 @@ def get_account(account_id: str) -> dict:
 
 # ── hypotheses ────────────────────────────────────────────────────────
 
+def ensure_account_exists(account_id: str):
+    """Ensures account_id exists in accounts table to prevent foreign key violations."""
+    try:
+        client = get_client()
+        res = client.table("accounts").select("id").eq("id", account_id).execute()
+        if not res.data:
+            client.table("accounts").insert({"id": account_id, "label": "Recorded Account"}).execute()
+    except Exception as e:
+        print(f"Warning: ensure_account_exists failed: {e}")
+
+
 def create_hypothesis(data: dict) -> dict:
     """Insert a new hypothesis row and return the created record."""
+    if data.get("account_id"):
+        ensure_account_exists(data["account_id"])
     return (
         get_client()
         .table("hypotheses")

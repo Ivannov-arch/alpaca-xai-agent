@@ -142,7 +142,13 @@ export function setCustomAlpacaKeys(key: string, secret: string) {
   else localStorage.removeItem("xai_alpaca_secret");
 }
 
-export async function fetchPortfolio(accountId: string = DEV_ACCOUNT_ID): Promise<PortfolioData> {
+export function getAccountId(): string {
+  if (typeof window === "undefined") return DEV_ACCOUNT_ID;
+  const active = getActiveAccount();
+  return active?.id || DEV_ACCOUNT_ID;
+}
+
+export async function fetchPortfolio(accountId: string = getAccountId()): Promise<PortfolioData> {
   const { key, secret } = getCustomAlpacaKeys();
   const headers: Record<string, string> = {};
   if (key) headers["X-Alpaca-Key"] = key;
@@ -171,7 +177,7 @@ export async function fetchPortfolio(accountId: string = DEV_ACCOUNT_ID): Promis
 export async function scanWatchlist(
   symbols: string[],
   strategyProfile: string = "SWING",
-  accountId: string = DEV_ACCOUNT_ID
+  accountId: string = getAccountId()
 ): Promise<{ scanned_count: number; results: Array<{ symbol: string; status: string; hypothesis_id?: string; error?: string }> }> {
   const res = await fetch(`${API_BASE_URL}/trade/scan-watchlist`, {
     method: "POST",
@@ -185,7 +191,7 @@ export async function scanWatchlist(
   return res.json();
 }
 
-export async function fetchHypotheses(accountId: string = DEV_ACCOUNT_ID): Promise<Hypothesis[]> {
+export async function fetchHypotheses(accountId: string = getAccountId()): Promise<Hypothesis[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/trade/hypotheses?account_id=${accountId}`, { cache: "no-store" });
     if (!res.ok) return [];
@@ -205,7 +211,7 @@ export async function fetchTradeDetail(hypothesisId: string): Promise<{ hypothes
 export async function triggerTrade(
   symbol: string,
   strategyProfile: string = "SWING",
-  accountId: string = DEV_ACCOUNT_ID
+  accountId: string = getAccountId()
 ): Promise<{ hypothesis_id: string; status: string; alpaca_order_id?: string }> {
   const res = await fetch(`${API_BASE_URL}/trade/start`, {
     method: "POST",
@@ -230,7 +236,7 @@ export async function triggerAudit(hypothesisId: string): Promise<{ audit_verdic
   return res.json();
 }
 
-export async function fetchMemories(accountId: string = DEV_ACCOUNT_ID): Promise<PostMortem[]> {
+export async function fetchMemories(accountId: string = getAccountId()): Promise<PostMortem[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/memory?account_id=${accountId}`, { cache: "no-store" });
     if (!res.ok) return [];

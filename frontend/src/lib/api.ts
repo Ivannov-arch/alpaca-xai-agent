@@ -186,9 +186,14 @@ export async function scanWatchlist(
 }
 
 export async function fetchHypotheses(accountId: string = DEV_ACCOUNT_ID): Promise<Hypothesis[]> {
-  const res = await fetch(`${API_BASE_URL}/trade/hypotheses?account_id=${accountId}`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch hypotheses");
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE_URL}/trade/hypotheses?account_id=${accountId}`, { cache: "no-store" });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (err) {
+    console.warn("fetchHypotheses network error:", err);
+    return [];
+  }
 }
 
 export async function fetchTradeDetail(hypothesisId: string): Promise<{ hypothesis: Hypothesis; audit_logs: AuditLog[] }> {
@@ -226,9 +231,14 @@ export async function triggerAudit(hypothesisId: string): Promise<{ audit_verdic
 }
 
 export async function fetchMemories(accountId: string = DEV_ACCOUNT_ID): Promise<PostMortem[]> {
-  const res = await fetch(`${API_BASE_URL}/memory?account_id=${accountId}`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch memory post-mortems");
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE_URL}/memory?account_id=${accountId}`, { cache: "no-store" });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (err) {
+    console.warn("fetchMemories network error:", err);
+    return [];
+  }
 }
 
 export interface MarketBar {

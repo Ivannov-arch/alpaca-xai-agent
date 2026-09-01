@@ -5,7 +5,7 @@ export const DEV_ACCOUNT_ID = "66e809f1-2f0e-4a3a-8ea3-bdb7c2d5a849";
 export interface Hypothesis {
   id: string;
   account_id: string;
-  symbol: str;
+  symbol: string;
   side: "buy" | "sell";
   order_type: string;
   qty: number;

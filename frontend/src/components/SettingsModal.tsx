@@ -122,8 +122,8 @@ export default function SettingsModal() {
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-lg p-6 space-y-4 bg-[#0f172a] border border-emerald-500/40 rounded-xl shadow-2xl max-h-[90vh] overflow-y-auto text-slate-100">
+        <div className="fixed inset-0 z-[999] flex items-start justify-center pt-20 pb-10 bg-slate-950/85 backdrop-blur-md p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="w-full max-w-lg p-6 space-y-4 bg-[#0f172a] border border-emerald-500/40 rounded-xl shadow-2xl my-auto text-slate-100">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
                 <span>🔑</span>

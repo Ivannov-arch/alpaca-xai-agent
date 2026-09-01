@@ -13,7 +13,10 @@ Endpoints exposed to the Next.js frontend:
 All endpoints require an `account_id` header or query param for scoping.
 The worker scheduler starts automatically via FastAPI lifespan.
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Header
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from agent.graph import trade_graph, audit_graph
 from agent.db import (

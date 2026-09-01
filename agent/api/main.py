@@ -65,9 +65,10 @@ class StartTradeRequest(BaseModel):
 
 # ── Routes ────────────────────────────────────────────────────────────
 
+@app.get("/")
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "message": "XAI Trading Agent API is running"}
 
 
 @app.post("/trade/start")

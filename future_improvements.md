@@ -4,7 +4,7 @@ This document outlines the advanced development roadmap for enhancing the autono
 
 ---
 
-## 1. 💰 Dynamic Portfolio Risk & Position Sizing Control
+## 1. 💰 Dynamic Portfolio Risk & Position Sizing Control ✅
 * **Description:** Implement percentage-based risk control (e.g., maximum 2% of total portfolio equity per trade) instead of fixed lot ranges.
 * **UI Feature:** "Max Allocation ($ / %)" input field on the frontend dashboard to allow users to customize transaction limits.
 

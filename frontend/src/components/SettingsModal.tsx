@@ -10,7 +10,11 @@ import {
   removeAccount,
   SavedAccount,
   setCustomAlpacaKeys,
+  getRiskSettings,
+  setRiskSettings,
+  RiskSettings,
 } from "@/lib/api";
+import RiskControl from "@/components/RiskControl";
 
 export default function SettingsModal() {
   const [mounted, setMounted] = useState(false);
@@ -23,6 +27,7 @@ export default function SettingsModal() {
   const [apiKey, setApiKey] = useState("");
   const [secretKey, setSecretKey] = useState("");
   const [strategyProfile, setStrategyProfile] = useState<"SCALPING" | "SWING" | "CONSERVATIVE">("SWING");
+  const [riskSettings, setRiskSettingsState] = useState<RiskSettings>({ mode: "percent", value: 1.0 });
   const [saveAsAccount, setSaveAsAccount] = useState(true);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
@@ -36,6 +41,9 @@ export default function SettingsModal() {
       setApiKey(active.apiKey);
       setSecretKey(active.secretKey);
       setStrategyProfile(active.strategyProfile);
+      setRiskSettingsState(active.riskSettings || getRiskSettings());
+    } else {
+      setRiskSettingsState(getRiskSettings());
     }
   };
 
@@ -59,8 +67,10 @@ export default function SettingsModal() {
         apiKey: apiKey.trim(),
         secretKey: secretKey.trim(),
         strategyProfile,
+        riskSettings,
       };
       saveAccount(acc);
+      setRiskSettings(riskSettings); // also persist globally
       setSavedMsg(`Account "${name}" saved & activated!`);
     } else {
       setCustomAlpacaKeys(apiKey.trim(), secretKey.trim());
@@ -230,6 +240,18 @@ export default function SettingsModal() {
                       <span className="text-[9px] text-slate-500 mt-0.5">{st.desc}</span>
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Position Risk Settings */}
+              <div>
+                <label className="block text-slate-300 mb-2 font-medium">
+                  Position Risk Settings
+                </label>
+                <div className="bg-slate-900/80 border border-slate-800 rounded p-3">
+                  <RiskControl
+                    onChange={(s) => setRiskSettingsState(s)}
+                  />
                 </div>
               </div>
 

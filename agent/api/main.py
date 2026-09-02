@@ -62,12 +62,16 @@ class StartTradeRequest(BaseModel):
     account_id: str
     symbol: str
     strategy_profile: str = "SWING"
+    risk_mode: str = "percent"   # "percent" | "dollar"
+    risk_value: float = 1.0      # 1.0 = 1% of equity (percent mode) or $1.00 (dollar mode)
 
 
 class ScanWatchlistRequest(BaseModel):
     account_id: str
     symbols: list[str]
     strategy_profile: str = "SWING"
+    risk_mode: str = "percent"
+    risk_value: float = 1.0
 
 
 # ── Routes ────────────────────────────────────────────────────────────
@@ -88,6 +92,13 @@ async def start_trade(req: StartTradeRequest, background_tasks: BackgroundTasks)
         "symbol": req.symbol,
         "account_id": req.account_id,
         "strategy_profile": req.strategy_profile,
+        # Risk sizing inputs
+        "risk_mode": req.risk_mode,
+        "risk_value": req.risk_value,
+        "computed_qty": None,
+        "dollar_risk": None,
+        "pct_of_equity": None,
+        # Graph state
         "hypothesis_id": None,
         "hypothesis_data": None,
         "alpaca_order_id": None,
@@ -107,6 +118,9 @@ async def start_trade(req: StartTradeRequest, background_tasks: BackgroundTasks)
         "hypothesis_id": final_state["hypothesis_id"],
         "status": final_state["status"],
         "alpaca_order_id": final_state.get("alpaca_order_id"),
+        "computed_qty": final_state.get("computed_qty"),
+        "dollar_risk": final_state.get("dollar_risk"),
+        "pct_of_equity": final_state.get("pct_of_equity"),
     }
 
 
@@ -179,6 +193,13 @@ async def scan_watchlist(req: ScanWatchlistRequest):
             "symbol": symbol.strip().upper(),
             "account_id": req.account_id,
             "strategy_profile": req.strategy_profile,
+            # Risk sizing inputs
+            "risk_mode": req.risk_mode,
+            "risk_value": req.risk_value,
+            "computed_qty": None,
+            "dollar_risk": None,
+            "pct_of_equity": None,
+            # Graph state
             "hypothesis_id": None,
             "hypothesis_data": None,
             "alpaca_order_id": None,
@@ -245,3 +266,16 @@ async def fetch_bars(symbol: str, timeframe: str = "1Day", limit: int = 40):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.get("/risk-settings/defaults")
+async def get_risk_defaults():
+    """
+    Returns the hard-coded risk ceiling and default values.
+    The frontend queries this to display the cap warning to users.
+    """
+    from agent.risk import HARD_CEILING_PCT, DEFAULT_RISK_PCT
+    return {
+        "hard_ceiling_pct": HARD_CEILING_PCT * 100,   # e.g. 5.0
+        "default_risk_pct": DEFAULT_RISK_PCT * 100,    # e.g. 1.0
+        "supported_modes": ["percent", "dollar"],
+    }

@@ -43,7 +43,10 @@ async def phase2_execute_order(state: AgentState) -> dict:
     try:
         # ── 2. Extract order parameters from hypothesis ────────────────
         symbol = hyp["symbol"]
-        qty = hyp["qty"]
+        # Prefer state's computed_qty (risk-adjusted) over hypothesis_data qty.
+        # Falls back to hyp["qty"] for backward compatibility with old records
+        # that ran before risk-based sizing was introduced.
+        qty = state.get("computed_qty") or hyp["qty"]
         side = hyp["side"]
         order_type = hyp["order_type"]
         entry_price = hyp.get("entry_price")  # None for market orders

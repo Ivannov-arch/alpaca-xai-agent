@@ -75,6 +75,8 @@ export default function HypothesesPage() {
                   <th className="py-3 px-3">Entry Price</th>
                   <th className="py-3 px-3">Target Price</th>
                   <th className="py-3 px-3">Stop Loss</th>
+                  <th className="py-3 px-3">Risk $</th>
+                  <th className="py-3 px-3">% Equity</th>
                   <th className="py-3 px-3">Status</th>
                   <th className="py-3 px-3 text-right">Details</th>
                 </tr>
@@ -111,6 +113,28 @@ export default function HypothesesPage() {
                     </td>
                     <td className="py-3.5 px-3 text-red-400 font-medium">
                       ${Number(hyp.stop_loss_price).toFixed(2)}
+                    </td>
+                    {/* Risk columns */}
+                    <td className="py-3.5 px-3">
+                      {hyp.risk_metadata?.dollar_risk != null ? (
+                        <span className="text-amber-400 font-medium">
+                          ${Number(hyp.risk_metadata.dollar_risk).toFixed(2)}
+                          {hyp.risk_metadata.capped && (
+                            <span className="ml-1 text-[9px] text-amber-500 uppercase">⚠cap</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">—</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-3">
+                      {hyp.risk_metadata?.pct_of_equity != null ? (
+                        <span className="text-slate-300">
+                          {Number(hyp.risk_metadata.pct_of_equity).toFixed(2)}%
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">—</span>
+                      )}
                     </td>
                     <td className="py-3.5 px-3">
                       <span

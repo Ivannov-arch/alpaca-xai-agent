@@ -11,6 +11,7 @@ import {
   Hypothesis,
 } from "@/lib/api";
 import WatchlistScanner from "@/components/WatchlistScanner";
+import RiskControl from "@/components/RiskControl";
 
 export default function Dashboard() {
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [lastRiskResult, setLastRiskResult] = useState<{ qty: number; dollarRisk: number; pctOfEquity: number } | null>(null);
 
   const loadData = async () => {
     try {
@@ -55,6 +57,13 @@ export default function Dashboard() {
       setSuccessMsg(
         `Hypothesis created (${strategy} mode)! ID: ${result.hypothesis_id} | Status: ${result.status}`
       );
+      if (result.computed_qty != null && result.dollar_risk != null && result.pct_of_equity != null) {
+        setLastRiskResult({
+          qty: result.computed_qty,
+          dollarRisk: result.dollar_risk,
+          pctOfEquity: result.pct_of_equity * 100,
+        });
+      }
       setSymbolInput("BTC/USD");
       await loadData();
     } catch (err: any) {
@@ -112,14 +121,29 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* Risk Control */}
+            <div className="border-t border-slate-800/60 pt-2">
+              <label className="block text-[10px] text-slate-400 uppercase tracking-wider mb-1.5">
+                Max Risk Per Trade
+              </label>
+              <RiskControl compact />
+            </div>
+
             {errorMsg && (
               <div className="p-2.5 rounded bg-red-950/60 border border-red-800/80 text-xs text-red-300">
                 {errorMsg}
               </div>
             )}
             {successMsg && (
-              <div className="p-2.5 rounded bg-emerald-950/60 border border-emerald-800/80 text-xs text-emerald-300">
-                {successMsg}
+              <div className="p-2.5 rounded bg-emerald-950/60 border border-emerald-800/80 text-xs text-emerald-300 space-y-1">
+                <div>{successMsg}</div>
+                {lastRiskResult && (
+                  <div className="flex items-center gap-3 text-[10px] text-emerald-400/80 border-t border-emerald-900/60 pt-1">
+                    <span>Qty: <strong>{lastRiskResult.qty}</strong></span>
+                    <span>At Risk: <strong>${lastRiskResult.dollarRisk.toFixed(2)}</strong></span>
+                    <span>Equity: <strong>{lastRiskResult.pctOfEquity.toFixed(2)}%</strong></span>
+                  </div>
+                )}
               </div>
             )}
           </form>

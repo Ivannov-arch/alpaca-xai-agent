@@ -224,6 +224,60 @@ export default function HypothesisDetailPage({
                 {hypothesis.alpaca_order_id ? hypothesis.alpaca_order_id.slice(0, 8) + "..." : "Pending"}
               </span>
             </div>
+
+            {/* ── Risk Breakdown ───────────────────────────── */}
+            <div className="mt-3 pt-3 border-t border-slate-800 space-y-2">
+              <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                Risk Breakdown
+              </h4>
+              {hypothesis.risk_metadata && Object.keys(hypothesis.risk_metadata).length > 0 ? (
+                <>
+                  <div className="flex justify-between py-0.5">
+                    <span className="text-slate-500">Dollar at Risk</span>
+                    <span className="text-amber-400 font-bold">
+                      ${Number(hypothesis.risk_metadata.dollar_risk ?? 0).toFixed(2)}
+                      {hypothesis.risk_metadata.capped && (
+                        <span className="ml-1 text-[9px] text-amber-500 border border-amber-700 rounded px-1 py-0.5">
+                          CAP
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-0.5">
+                    <span className="text-slate-500">% of Equity</span>
+                    <span className="text-slate-300 font-medium">
+                      {Number(hypothesis.risk_metadata.pct_of_equity ?? 0).toFixed(2)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-0.5">
+                    <span className="text-slate-500">Position Value</span>
+                    <span className="text-slate-300">
+                      ${Number(hypothesis.risk_metadata.position_value ?? 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-0.5">
+                    <span className="text-slate-500">Risk Mode</span>
+                    <span className="text-slate-400 capitalize">
+                      {hypothesis.risk_metadata.risk_mode ?? "percent"}{" "}
+                      ({hypothesis.risk_metadata.risk_value ?? 1}
+                      {hypothesis.risk_metadata.risk_mode === "dollar" ? " $" : "%"})
+                    </span>
+                  </div>
+                  {hypothesis.risk_metadata.equity_at_trade != null && (
+                    <div className="flex justify-between py-0.5">
+                      <span className="text-slate-500">Equity at Trade</span>
+                      <span className="text-slate-500">
+                        ${Number(hypothesis.risk_metadata.equity_at_trade).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-[10px] text-slate-600 italic">
+                  Legacy trade — fixed-size sizing (pre-risk engine).
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

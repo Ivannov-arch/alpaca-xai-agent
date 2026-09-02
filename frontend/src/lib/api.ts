@@ -2,6 +2,11 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export const DEV_ACCOUNT_ID = "66e809f1-2f0e-4a3a-8ea3-bdb7c2d5a849";
 
+export interface RiskSettings {
+  mode: "percent" | "dollar";
+  value: number; // percent: 1.0 = 1%; dollar: 500.0 = $500
+}
+
 export interface Hypothesis {
   id: string;
   account_id: string;
@@ -16,6 +21,16 @@ export interface Hypothesis {
   invalidation_triggers: { condition: string; threshold: string }[];
   status: "PENDING" | "ACTIVE" | "CLOSED" | "ABORTED";
   alpaca_order_id?: string;
+  risk_metadata?: {
+    risk_mode?: string;
+    risk_value?: number;
+    dollar_risk?: number;
+    pct_of_equity?: number;
+    position_value?: number;
+    capped?: boolean;
+    equity_at_trade?: number;
+    hard_ceiling_pct?: number;
+  };
   created_at: string;
   updated_at: string;
 }
@@ -66,6 +81,7 @@ export interface SavedAccount {
   apiKey: string;
   secretKey: string;
   strategyProfile: "SCALPING" | "SWING" | "CONSERVATIVE";
+  riskSettings?: RiskSettings;
 }
 
 export function getSavedAccounts(): SavedAccount[] {
@@ -148,6 +164,47 @@ export function getAccountId(): string {
   return active?.id || DEV_ACCOUNT_ID;
 }
 
+// ── Risk Settings ─────────────────────────────────────────────────────
+
+export const DEFAULT_RISK_SETTINGS: RiskSettings = { mode: "percent", value: 1.0 };
+export const HARD_CEILING_PCT = 5.0; // mirrors agent/risk.py HARD_CEILING_PCT
+
+export function getRiskSettings(): RiskSettings {
+  if (typeof window === "undefined") return DEFAULT_RISK_SETTINGS;
+  // Per-account risk settings take priority
+  const active = getActiveAccount();
+  if (active?.riskSettings) return active.riskSettings;
+  // Fall back to global localStorage key
+  try {
+    const raw = localStorage.getItem("xai_risk_settings");
+    return raw ? JSON.parse(raw) : DEFAULT_RISK_SETTINGS;
+  } catch {
+    return DEFAULT_RISK_SETTINGS;
+  }
+}
+
+export function setRiskSettings(settings: RiskSettings): void {
+  if (typeof window === "undefined") return;
+  // Clamp value to hard ceiling in percent mode
+  const clamped: RiskSettings = {
+    ...settings,
+    value:
+      settings.mode === "percent"
+        ? Math.min(settings.value, HARD_CEILING_PCT)
+        : settings.value,
+  };
+  localStorage.setItem("xai_risk_settings", JSON.stringify(clamped));
+  // Also persist into the active account so it survives account switching
+  const active = getActiveAccount();
+  if (active) {
+    const updated: SavedAccount = { ...active, riskSettings: clamped };
+    const list = getSavedAccounts().filter((a) => a.id !== active.id);
+    list.push(updated);
+    localStorage.setItem("xai_saved_accounts", JSON.stringify(list));
+    localStorage.setItem("xai_active_account", JSON.stringify(updated));
+  }
+}
+
 export async function fetchPortfolio(accountId: string = getAccountId()): Promise<PortfolioData> {
   const { key, secret } = getCustomAlpacaKeys();
   const headers: Record<string, string> = {};
@@ -179,10 +236,17 @@ export async function scanWatchlist(
   strategyProfile: string = "SWING",
   accountId: string = getAccountId()
 ): Promise<{ scanned_count: number; results: Array<{ symbol: string; status: string; hypothesis_id?: string; error?: string }> }> {
+  const risk = getRiskSettings();
   const res = await fetch(`${API_BASE_URL}/trade/scan-watchlist`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ symbols, strategy_profile: strategyProfile, account_id: accountId }),
+    body: JSON.stringify({
+      symbols,
+      strategy_profile: strategyProfile,
+      account_id: accountId,
+      risk_mode: risk.mode,
+      risk_value: risk.value,
+    }),
   });
   if (!res.ok) {
     const err = await res.json();
@@ -212,11 +276,18 @@ export async function triggerTrade(
   symbol: string,
   strategyProfile: string = "SWING",
   accountId: string = getAccountId()
-): Promise<{ hypothesis_id: string; status: string; alpaca_order_id?: string }> {
+): Promise<{ hypothesis_id: string; status: string; alpaca_order_id?: string; computed_qty?: number; dollar_risk?: number; pct_of_equity?: number }> {
+  const risk = getRiskSettings();
   const res = await fetch(`${API_BASE_URL}/trade/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ symbol, strategy_profile: strategyProfile, account_id: accountId }),
+    body: JSON.stringify({
+      symbol,
+      strategy_profile: strategyProfile,
+      account_id: accountId,
+      risk_mode: risk.mode,
+      risk_value: risk.value,
+    }),
   });
   if (!res.ok) {
     const err = await res.json();

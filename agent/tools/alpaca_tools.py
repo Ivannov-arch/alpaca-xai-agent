@@ -64,7 +64,7 @@ def get_market_data(symbol: str, timeframe: str = "1Day", limit: int = 30) -> li
             "limit": limit,
             "start": start_date,
         }
-        resp = httpx.get(url, headers=_HEADERS, params=params, timeout=15)
+        resp = httpx.get(url, headers=_HEADERS, params=params, timeout=15, verify=False)
         resp.raise_for_status()
         bars_dict = resp.json().get("bars") or {}
         return bars_dict.get(clean_symbol) or []
@@ -77,7 +77,7 @@ def get_market_data(symbol: str, timeframe: str = "1Day", limit: int = 30) -> li
             "feed": "iex",
             "start": start_date,
         }
-        resp = httpx.get(url, headers=_HEADERS, params=params, timeout=15)
+        resp = httpx.get(url, headers=_HEADERS, params=params, timeout=15, verify=False)
         resp.raise_for_status()
         return resp.json().get("bars") or []
 
@@ -119,8 +119,15 @@ def create_order(
         headers=headers,
         json=payload,
         timeout=15,
+        verify=False,
     )
-    resp.raise_for_status()
+    if resp.is_error:
+        try:
+            err_data = resp.json()
+            err_msg = err_data.get("message") or err_data.get("detail") or resp.text
+        except Exception:
+            err_msg = resp.text
+        raise ValueError(f"Alpaca Order Rejected ({resp.status_code}): {err_msg}")
     return resp.json()
 
 
@@ -136,6 +143,7 @@ def get_positions(api_key: str | None = None, secret_key: str | None = None) -> 
         f"{_BROKER_URL}/v2/positions",
         headers=headers,
         timeout=15,
+        verify=False,
     )
     resp.raise_for_status()
     return resp.json()
@@ -151,6 +159,7 @@ def get_position(symbol: str, api_key: str | None = None, secret_key: str | None
             f"{_BROKER_URL}/v2/positions/{clean_sym}",
             headers=headers,
             timeout=15,
+            verify=False,
         )
         resp.raise_for_status()
         return resp.json()
@@ -174,6 +183,7 @@ def close_position(symbol: str, api_key: str | None = None, secret_key: str | No
         f"{_BROKER_URL}/v2/positions/{clean_sym}",
         headers=headers,
         timeout=15,
+        verify=False,
     )
     resp.raise_for_status()
     return resp.json()
@@ -191,6 +201,7 @@ def get_account(api_key: str | None = None, secret_key: str | None = None) -> di
         f"{_BROKER_URL}/v2/account",
         headers=headers,
         timeout=15,
+        verify=False,
     )
     resp.raise_for_status()
     return resp.json()

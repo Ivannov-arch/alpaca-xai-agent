@@ -47,9 +47,15 @@ class HypothesisSchema(BaseModel):
     The mandatory pre-trade contract. The agent cannot execute an order
     without producing and validating this document first.
     """
-    symbol: str = Field(description="Ticker symbol, e.g. AAPL")
+    symbol: str = Field(description="Ticker symbol, e.g. AAPL or BTC/USD")
     side: Literal["buy", "sell"] = Field(description="Direction of the trade")
     order_type: Literal["market", "limit"] = Field(description="Order execution type")
+    instrument_type: Optional[Literal["equity", "crypto", "option"]] = Field(
+        "equity", description="Financial instrument type: equity, crypto, or option contract"
+    )
+    option_type: Optional[Literal["call", "put"]] = Field(
+        None, description="If trading options: call for bullish, put for bearish"
+    )
     qty: float = Field(description="Advisory quantity — will be overridden by server-side risk calculation", gt=0)
     entry_price: Optional[float] = Field(None, description="Limit entry price (null if market order)")
     target_price: float = Field(description="Price target where profit is taken")

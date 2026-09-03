@@ -17,30 +17,60 @@ interface RiskControlProps {
 
 export default function RiskControl({ onChange, compact = false }: RiskControlProps) {
   const [settings, setSettings] = useState<RiskSettings>({ mode: "percent", value: 1.0 });
+  const [inputValue, setInputValue] = useState<string>("1.0");
+  const [inputError, setInputError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setSettings(getRiskSettings());
+    const loaded = getRiskSettings();
+    setSettings(loaded);
+    setInputValue(String(loaded.value ?? (loaded.mode === "percent" ? 1.0 : 500.0)));
   }, []);
 
   const handleModeToggle = (mode: "percent" | "dollar") => {
+    const defaultVal = mode === "percent" ? 1.0 : 500.0;
     const next: RiskSettings = {
       mode,
-      // Sensible defaults when switching modes
-      value: mode === "percent" ? 1.0 : 500.0,
+      value: defaultVal,
     };
     setSettings(next);
+    setInputValue(String(defaultVal));
+    setInputError(null);
     persist(next);
   };
 
   const handleValueChange = (raw: string) => {
+    setInputValue(raw);
+
+    if (raw.trim() === "") {
+      setInputError("Risk value is required");
+      return;
+    }
+
     const parsed = parseFloat(raw);
-    if (isNaN(parsed) || parsed <= 0) return;
+    if (isNaN(parsed) || parsed <= 0) {
+      setInputError("Must be greater than 0");
+      return;
+    }
+
+    setInputError(null);
     const clamped =
       settings.mode === "percent" ? Math.min(parsed, HARD_CEILING_PCT) : parsed;
     const next: RiskSettings = { ...settings, value: clamped };
     setSettings(next);
     persist(next);
+  };
+
+  const handleBlur = () => {
+    if (inputValue.trim() === "" || inputError) {
+      // Revert to a safe default if left blank on blur
+      const fallback = settings.mode === "percent" ? 1.0 : 500.0;
+      setInputValue(String(fallback));
+      setInputError(null);
+      const next: RiskSettings = { ...settings, value: fallback };
+      setSettings(next);
+      persist(next);
+    }
   };
 
   const persist = (s: RiskSettings) => {
@@ -51,7 +81,7 @@ export default function RiskControl({ onChange, compact = false }: RiskControlPr
   };
 
   const isCapped =
-    settings.mode === "percent" && settings.value >= HARD_CEILING_PCT;
+    settings.mode === "percent" && parseFloat(inputValue || "0") >= HARD_CEILING_PCT;
 
   return (
     <div className={compact ? "space-y-1.5" : "space-y-3"}>
@@ -60,7 +90,7 @@ export default function RiskControl({ onChange, compact = false }: RiskControlPr
           <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
             Max Risk Per Trade
           </span>
-          {saved && (
+          {saved && !inputError && (
             <span className="text-[10px] text-emerald-400 animate-pulse">✓ Saved</span>
           )}
         </div>
@@ -102,13 +132,19 @@ export default function RiskControl({ onChange, compact = false }: RiskControlPr
           )}
           <input
             type="number"
-            value={settings.value}
+            value={inputValue}
+            placeholder={settings.mode === "percent" ? "1.0" : "500"}
             step={settings.mode === "percent" ? 0.1 : 10}
             min={settings.mode === "percent" ? 0.1 : 10}
             max={settings.mode === "percent" ? HARD_CEILING_PCT : undefined}
             onChange={(e) => handleValueChange(e.target.value)}
-            className={`w-full bg-slate-900 border rounded px-2 py-1 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors ${
-              isCapped ? "border-amber-600" : "border-slate-700"
+            onBlur={handleBlur}
+            className={`w-full bg-slate-900 border rounded px-2 py-1 text-sm text-slate-100 focus:outline-none transition-colors ${
+              inputError
+                ? "border-red-500 focus:border-red-400"
+                : isCapped
+                ? "border-amber-600 focus:border-amber-500"
+                : "border-slate-700 focus:border-emerald-500"
             } ${settings.mode === "dollar" ? "pl-5" : ""}`}
           />
           {settings.mode === "percent" && (
@@ -119,13 +155,18 @@ export default function RiskControl({ onChange, compact = false }: RiskControlPr
         </div>
 
         {/* Compact saved indicator */}
-        {compact && saved && (
+        {compact && saved && !inputError && (
           <span className="text-[10px] text-emerald-400 shrink-0">✓</span>
         )}
       </div>
 
-      {/* Hard ceiling badge */}
-      {isCapped ? (
+      {/* Error message */}
+      {inputError ? (
+        <div className="text-[10px] text-red-400 flex items-center gap-1 font-medium">
+          <span>⚠</span>
+          <span>{inputError}</span>
+        </div>
+      ) : isCapped ? (
         <div className="flex items-center gap-1 text-[10px] text-amber-400">
           <span>⚠</span>
           <span>Hard ceiling reached — {HARD_CEILING_PCT}% max enforced</span>

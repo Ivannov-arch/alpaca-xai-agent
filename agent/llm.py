@@ -56,6 +56,7 @@ class MockStructuredRunnable:
             "thesis_text": f"Technical momentum breakout observed on {symbol}. Holding above support at ${stop_loss:.2f}.",
             "invalidation_triggers": [
                 {"condition": "Price closes below support", "threshold": f"Price < ${stop_loss:.2f}"},
+                {"condition": "High volume bearish distribution session", "threshold": "High volume red candle breach"},
             ],
         }
         if hasattr(self.schema_cls, "model_validate"):

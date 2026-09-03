@@ -263,70 +263,116 @@ export default function Dashboard() {
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400 uppercase">
                   <th className="py-2.5 px-3">Symbol</th>
-                  <th className="py-2.5 px-3">Triggered By</th>
                   <th className="py-2.5 px-3">Side</th>
-                  <th className="py-2.5 px-3">Risk ($ / %)</th>
+                  <th className="py-2.5 px-3">Entry Price</th>
+                  <th className="py-2.5 px-3">Exit Price</th>
+                  <th className="py-2.5 px-3">PnL ($ / %)</th>
                   <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3">Target / Stop</th>
                   <th className="py-2.5 px-3">Created</th>
                   <th className="py-2.5 px-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {hypotheses.slice(0, 6).map((hyp) => (
-                  <tr key={hyp.id} className="hover:bg-slate-900/40">
-                    <td className="py-3 px-3 font-bold text-slate-100">{hyp.symbol}</td>
-                    <td className="py-3 px-3">
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
-                          hyp.risk_metadata?.triggered_by === "scanner"
-                            ? "bg-purple-950 text-purple-300 border border-purple-800"
-                            : "bg-slate-900 text-slate-300 border border-slate-700"
-                        }`}
-                      >
-                        {hyp.risk_metadata?.triggered_by === "scanner" ? "⚡ AUTO SCANNER" : "👤 MANUAL"}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${hyp.side === 'buy' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-red-950 text-red-400 border border-red-800'}`}>
-                        {hyp.side}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 font-mono text-slate-300">
-                      {hyp.risk_metadata?.dollar_risk != null ? (
-                        <span className="text-amber-400 font-medium">
-                          ${Number(hyp.risk_metadata.dollar_risk).toFixed(2)} ({Number(hyp.risk_metadata.pct_of_equity ?? 0).toFixed(1)}%)
+                {hypotheses.slice(0, 6).map((hyp) => {
+                  const pnlPct = hyp.pnl_percentage != null ? Number(hyp.pnl_percentage) : null;
+                  const pnlAbs = hyp.pnl_absolute != null ? Number(hyp.pnl_absolute) : null;
+                  const isPositive = (pnlPct ?? 0) >= 0;
+
+                  return (
+                    <tr key={hyp.id} className="hover:bg-slate-900/40">
+                      <td className="py-3 px-3 font-bold text-slate-100 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-emerald-400">{hyp.symbol}</span>
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[9px] uppercase font-bold ${
+                              hyp.risk_metadata?.triggered_by === "scanner"
+                                ? "bg-purple-950 text-purple-300 border border-purple-800"
+                                : "bg-slate-900 text-slate-400 border border-slate-700"
+                            }`}
+                          >
+                            {hyp.risk_metadata?.triggered_by === "scanner" ? "⚡ SCAN" : "MANUAL"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
+                            hyp.side === "buy"
+                              ? "bg-emerald-950 text-emerald-400 border border-emerald-800"
+                              : "bg-red-950 text-red-400 border border-red-800"
+                          }`}
+                        >
+                          {hyp.side}
                         </span>
-                      ) : (
-                        <span className="text-slate-600">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        hyp.status === 'ACTIVE' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800 animate-pulse' :
-                        hyp.status === 'PENDING' ? 'bg-amber-950 text-amber-400 border border-amber-800' :
-                        hyp.status === 'CLOSED' ? 'bg-slate-800 text-slate-300 border border-slate-700' :
-                        'bg-red-950 text-red-400 border border-red-800'
-                      }`}>
-                        {hyp.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-slate-400 font-mono text-[11px]">
-                      ${hyp.target_price} / ${hyp.stop_loss_price}
-                    </td>
-                    <td className="py-3 px-3 text-slate-500">
-                      {new Date(hyp.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      <Link
-                        href={`/hypotheses/${hyp.id}`}
-                        className="text-emerald-400 hover:text-emerald-300 hover:underline text-[11px]"
-                      >
-                        Inspect Audit &rarr;
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-3 px-3 text-slate-300 font-mono">
+                        ${hyp.entry_price ? Number(hyp.entry_price).toFixed(2) : "Market"}
+                      </td>
+                      <td className="py-3 px-3 font-mono">
+                        {hyp.exit_price != null ? (
+                          <span className="text-slate-200 font-semibold">
+                            ${Number(hyp.exit_price).toFixed(2)}
+                          </span>
+                        ) : hyp.status === "ACTIVE" ? (
+                          <span className="text-emerald-400 text-[11px] animate-pulse">Live</span>
+                        ) : hyp.status === "PENDING" ? (
+                          <span className="text-amber-400 text-[11px]">Pending</span>
+                        ) : (
+                          <span className="text-slate-600">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        {pnlPct != null ? (
+                          <div className="flex items-center gap-1.5 font-mono font-bold text-xs">
+                            <span
+                              className={`px-2 py-0.5 rounded border text-[11px] ${
+                                isPositive
+                                  ? "bg-emerald-950 text-emerald-400 border-emerald-800"
+                                  : "bg-red-950 text-red-400 border-red-800"
+                              }`}
+                            >
+                              {isPositive ? "+" : ""}
+                              {pnlPct.toFixed(2)}%
+                            </span>
+                            {pnlAbs != null && (
+                              <span className={isPositive ? "text-emerald-400" : "text-red-400"}>
+                                ({isPositive ? "+" : ""}${pnlAbs.toFixed(2)})
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-600 font-mono">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            hyp.status === "ACTIVE"
+                              ? "bg-emerald-950 text-emerald-400 border border-emerald-800 animate-pulse"
+                              : hyp.status === "PENDING"
+                              ? "bg-amber-950 text-amber-400 border border-amber-800"
+                              : hyp.status === "CLOSED"
+                              ? "bg-slate-800 text-slate-300 border border-slate-700"
+                              : "bg-red-950 text-red-400 border border-red-800"
+                          }`}
+                        >
+                          {hyp.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-slate-500">
+                        {new Date(hyp.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <Link
+                          href={`/hypotheses/${hyp.id}`}
+                          className="text-emerald-400 hover:text-emerald-300 hover:underline text-[11px]"
+                        >
+                          Inspect Audit &rarr;
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

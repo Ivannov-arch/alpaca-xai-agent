@@ -98,15 +98,53 @@ def get_active_hypotheses() -> list[dict]:
 
 
 def list_hypotheses(account_id: str) -> list[dict]:
-    return (
-        get_client()
-        .table("hypotheses")
-        .select("*")
-        .eq("account_id", account_id)
-        .order("created_at", desc=True)
-        .execute()
-        .data
-    )
+    try:
+        hypotheses = (
+            get_client()
+            .table("hypotheses")
+            .select("*, post_mortems(pnl_percentage, pnl_absolute, outcome), audit_logs(market_snapshot, created_at)")
+            .eq("account_id", account_id)
+            .order("created_at", desc=True)
+            .execute()
+            .data
+        )
+    except Exception:
+        # Fallback to standard query if join fails
+        hypotheses = (
+            get_client()
+            .table("hypotheses")
+            .select("*")
+            .eq("account_id", account_id)
+            .order("created_at", desc=True)
+            .execute()
+            .data
+        )
+
+    for hyp in (hypotheses or []):
+        pm_list = hyp.pop("post_mortems", None)
+        if pm_list and isinstance(pm_list, list) and len(pm_list) > 0:
+            pm = pm_list[0]
+            hyp["pnl_percentage"] = pm.get("pnl_percentage")
+            hyp["pnl_absolute"] = pm.get("pnl_absolute")
+            hyp["outcome"] = pm.get("outcome")
+        else:
+            hyp.setdefault("pnl_percentage", None)
+            hyp.setdefault("pnl_absolute", None)
+            hyp.setdefault("outcome", None)
+
+        logs = hyp.pop("audit_logs", None)
+        latest_price = None
+        if logs and isinstance(logs, list) and len(logs) > 0:
+            sorted_logs = sorted(logs, key=lambda x: x.get("created_at", ""), reverse=True)
+            snap = sorted_logs[0].get("market_snapshot", {})
+            latest_price = snap.get("current_price")
+            if hyp.get("status") == "ACTIVE" and hyp.get("pnl_percentage") is None:
+                hyp["pnl_percentage"] = snap.get("unrealised_pnl_pct")
+                hyp["pnl_absolute"] = snap.get("unrealised_pnl")
+
+        hyp["exit_price"] = latest_price if hyp.get("status") in ("CLOSED", "ACTIVE") else None
+
+    return hypotheses or []
 
 
 # ── audit_logs ────────────────────────────────────────────────────────

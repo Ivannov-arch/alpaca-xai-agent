@@ -17,6 +17,10 @@ export interface Hypothesis {
   entry_price?: number;
   target_price: number;
   stop_loss_price: number;
+  exit_price?: number;
+  pnl_percentage?: number;
+  pnl_absolute?: number;
+  outcome?: "WIN" | "LOSS" | "BREAKEVEN" | string;
   thesis_text: string;
   invalidation_triggers: { condition: string; threshold: string }[];
   status: "PENDING" | "ACTIVE" | "CLOSED" | "ABORTED";

@@ -69,6 +69,8 @@ export interface PortfolioData {
     cash?: string;
     buying_power?: string;
     equity?: string;
+    last_equity?: string;
+    initial_capital?: string;
   };
   positions: Array<{
     symbol: string;
@@ -87,6 +89,7 @@ export interface SavedAccount {
   secretKey: string;
   strategyProfile: "SCALPING" | "SWING" | "CONSERVATIVE";
   riskSettings?: RiskSettings;
+  initialCapital?: number;
 }
 
 export function getSavedAccounts(): SavedAccount[] {

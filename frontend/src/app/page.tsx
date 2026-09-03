@@ -150,39 +150,79 @@ export default function Dashboard() {
         </div>
 
         {/* Account Overview Metric Cards */}
-        <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="terminal-card p-4 flex flex-col justify-between">
-            <span className="text-xs text-slate-400 uppercase">Portfolio Value</span>
-            <span className="text-xl font-bold text-slate-100 mt-1">
-              ${account?.portfolio_value ? Number(account.portfolio_value).toLocaleString(undefined, { minimumFractionDigits: 2 }) : "100,000.00"}
-            </span>
-            <span className="text-[10px] text-emerald-400 mt-2">Live Alpaca Balance</span>
-          </div>
+        {(() => {
+          const activeAcc = getActiveAccount();
+          const initialCapital = activeAcc?.initialCapital || 100000;
+          const portfolioValue = account?.portfolio_value ? Number(account.portfolio_value) : (account?.equity ? Number(account.equity) : initialCapital);
+          const totalPnlDollars = portfolioValue - initialCapital;
+          const totalPnlPct = initialCapital > 0 ? (totalPnlDollars / initialCapital) * 100 : 0;
+          const isTotalPositive = totalPnlDollars >= 0;
 
-          <div className="terminal-card p-4 flex flex-col justify-between">
-            <span className="text-xs text-slate-400 uppercase">Buying Power</span>
-            <span className="text-xl font-bold text-slate-100 mt-1">
-              ${account?.buying_power ? Number(account.buying_power).toLocaleString(undefined, { minimumFractionDigits: 2 }) : "200,000.00"}
-            </span>
-            <span className="text-[10px] text-slate-500 mt-2">2x Margin Available</span>
-          </div>
+          const lastEquity = account?.last_equity ? Number(account.last_equity) : initialCapital;
+          const dailyPnlDollars = portfolioValue - lastEquity;
+          const dailyPnlPct = lastEquity > 0 ? (dailyPnlDollars / lastEquity) * 100 : 0;
+          const isDailyPositive = dailyPnlDollars >= 0;
 
-          <div className="terminal-card p-4 flex flex-col justify-between">
-            <span className="text-xs text-slate-400 uppercase">Cash</span>
-            <span className="text-xl font-bold text-slate-100 mt-1">
-              ${account?.cash ? Number(account.cash).toLocaleString(undefined, { minimumFractionDigits: 2 }) : "100,000.00"}
-            </span>
-            <span className="text-[10px] text-slate-500 mt-2">Unallocated Funds</span>
-          </div>
+          return (
+            <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {/* Card 1: Total Portfolio Value & All-Time PnL */}
+              <div className="terminal-card p-4 flex flex-col justify-between border-slate-800">
+                <span className="text-xs text-slate-400 uppercase tracking-wider">Portfolio Value</span>
+                <div className="mt-1">
+                  <div className="text-xl font-bold text-slate-100">
+                    ${portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className={`text-[11px] font-mono font-semibold mt-0.5 ${isTotalPositive ? "text-emerald-400" : "text-red-400"}`}>
+                    {isTotalPositive ? "+" : ""}${totalPnlDollars.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({isTotalPositive ? "+" : ""}{totalPnlPct.toFixed(2)}%)
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-500 mt-2">vs Initial Capital (${initialCapital.toLocaleString()})</span>
+              </div>
 
-          <div className="terminal-card p-4 flex flex-col justify-between">
-            <span className="text-xs text-slate-400 uppercase">Active Positions</span>
-            <span className="text-xl font-bold text-emerald-400 mt-1">
-              {positions.length}
-            </span>
-            <span className="text-[10px] text-emerald-400 mt-2">Monitored by Phase 3</span>
-          </div>
-        </div>
+              {/* Card 2: Daily PnL */}
+              <div className="terminal-card p-4 flex flex-col justify-between border-slate-800">
+                <span className="text-xs text-slate-400 uppercase tracking-wider">Today's P&L</span>
+                <div className="mt-1">
+                  <div className={`text-xl font-bold ${isDailyPositive ? "text-emerald-400" : "text-red-400"}`}>
+                    {isDailyPositive ? "+" : ""}${dailyPnlDollars.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className={`text-[11px] font-mono font-semibold mt-0.5 ${isDailyPositive ? "text-emerald-400" : "text-red-400"}`}>
+                    {isDailyPositive ? "+" : ""}{dailyPnlPct.toFixed(2)}%
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-500 mt-2">vs Prev Day ($${lastEquity.toLocaleString()})</span>
+              </div>
+
+              {/* Card 3: Buying Power & Cash */}
+              <div className="terminal-card p-4 flex flex-col justify-between border-slate-800">
+                <span className="text-xs text-slate-400 uppercase tracking-wider">Buying Power</span>
+                <div className="mt-1">
+                  <div className="text-xl font-bold text-slate-100">
+                    ${account?.buying_power ? Number(account.buying_power).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "200,000.00"}
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                    Cash: ${account?.cash ? Number(account.cash).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "100,000.00"}
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-500 mt-2">2x Margin Available</span>
+              </div>
+
+              {/* Card 4: Active Positions */}
+              <div className="terminal-card p-4 flex flex-col justify-between border-slate-800">
+                <span className="text-xs text-slate-400 uppercase tracking-wider">Active Positions</span>
+                <div className="mt-1">
+                  <div className="text-xl font-bold text-emerald-400">
+                    {positions.length}
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                    {positions.length > 0 ? `${positions.length} Open Trades` : "No Open Trades"}
+                  </div>
+                </div>
+                <span className="text-[10px] text-emerald-400 mt-2">Monitored 24/7 by Phase 3</span>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Selected Investment Watchlist & Auto-Scanner Bar */}

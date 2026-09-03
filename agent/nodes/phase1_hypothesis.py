@@ -26,7 +26,7 @@ from agent.state import AgentState
 from agent.llm import get_llm
 from agent.db import create_hypothesis
 from agent.memory import retrieve_relevant_memories, format_memories_for_prompt
-from agent.tools.alpaca_tools import get_market_data, get_account
+from agent.tools.alpaca_tools import get_market_data, get_account, get_option_contracts
 from agent.risk import (
     calculate_position_size,
     risk_settings_from_state,
@@ -206,6 +206,17 @@ stop-loss distance to compute the actual position size. The `qty` field is advis
 
         triggered_by = state.get("triggered_by") or "manual"
 
+        # ── 5b. Resolve Option Contract if instrument is option ────────
+        option_contract = None
+        if hypothesis.instrument_type == "option" or hypothesis.option_type is not None:
+            opt_type = hypothesis.option_type or ("call" if hypothesis.side == "buy" else "put")
+            try:
+                contracts = get_option_contracts(symbol, option_type=opt_type, limit=1)
+                if contracts and isinstance(contracts, list) and len(contracts) > 0:
+                    option_contract = contracts[0].get("symbol")
+            except Exception:
+                pass
+
         # Build risk metadata to store alongside the hypothesis
         risk_metadata = {
             "triggered_by": triggered_by,
@@ -217,6 +228,9 @@ stop-loss distance to compute the actual position size. The `qty` field is advis
             "capped": size_result.capped,
             "equity_at_trade": round(equity, 2),
             "hard_ceiling_pct": HARD_CEILING_PCT * 100,
+            "instrument_type": hypothesis.instrument_type or ("option" if hypothesis.option_type else "equity"),
+            "option_type": hypothesis.option_type,
+            "option_contract": option_contract,
         }
 
         # ── 7. Persist to database ─────────────────────────────────

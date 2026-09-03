@@ -194,6 +194,17 @@ export default function HypothesisDetailPage({
             </div>
 
             <div className="flex justify-between py-1 border-b border-slate-800/50">
+              <span className="text-slate-400">Trigger Source</span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                hypothesis.risk_metadata?.triggered_by === "scanner"
+                  ? "bg-purple-950 text-purple-300 border border-purple-800"
+                  : "bg-slate-900 text-slate-300 border border-slate-700"
+              }`}>
+                {hypothesis.risk_metadata?.triggered_by === "scanner" ? "⚡ Auto-Scanner" : "👤 Manual"}
+              </span>
+            </div>
+
+            <div className="flex justify-between py-1 border-b border-slate-800/50">
               <span className="text-slate-400">Symbol / Side</span>
               <span className="font-bold text-slate-100 uppercase">{hypothesis.symbol} ({hypothesis.side})</span>
             </div>

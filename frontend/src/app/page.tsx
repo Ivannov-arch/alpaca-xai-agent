@@ -263,22 +263,43 @@ export default function Dashboard() {
               <thead>
                 <tr className="border-b border-slate-800 text-slate-400 uppercase">
                   <th className="py-2.5 px-3">Symbol</th>
+                  <th className="py-2.5 px-3">Triggered By</th>
                   <th className="py-2.5 px-3">Side</th>
+                  <th className="py-2.5 px-3">Risk ($ / %)</th>
                   <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3">Target / Stop</th>
-                  <th className="py-2.5 px-3">Thesis Excerpt</th>
                   <th className="py-2.5 px-3">Created</th>
                   <th className="py-2.5 px-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {hypotheses.slice(0, 5).map((hyp) => (
+                {hypotheses.slice(0, 6).map((hyp) => (
                   <tr key={hyp.id} className="hover:bg-slate-900/40">
                     <td className="py-3 px-3 font-bold text-slate-100">{hyp.symbol}</td>
+                    <td className="py-3 px-3">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
+                          hyp.risk_metadata?.triggered_by === "scanner"
+                            ? "bg-purple-950 text-purple-300 border border-purple-800"
+                            : "bg-slate-900 text-slate-300 border border-slate-700"
+                        }`}
+                      >
+                        {hyp.risk_metadata?.triggered_by === "scanner" ? "⚡ AUTO SCANNER" : "👤 MANUAL"}
+                      </span>
+                    </td>
                     <td className="py-3 px-3">
                       <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${hyp.side === 'buy' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-red-950 text-red-400 border border-red-800'}`}>
                         {hyp.side}
                       </span>
+                    </td>
+                    <td className="py-3 px-3 font-mono text-slate-300">
+                      {hyp.risk_metadata?.dollar_risk != null ? (
+                        <span className="text-amber-400 font-medium">
+                          ${Number(hyp.risk_metadata.dollar_risk).toFixed(2)} ({Number(hyp.risk_metadata.pct_of_equity ?? 0).toFixed(1)}%)
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">—</span>
+                      )}
                     </td>
                     <td className="py-3 px-3">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -290,11 +311,8 @@ export default function Dashboard() {
                         {hyp.status}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-slate-400">
+                    <td className="py-3 px-3 text-slate-400 font-mono text-[11px]">
                       ${hyp.target_price} / ${hyp.stop_loss_price}
-                    </td>
-                    <td className="py-3 px-3 text-slate-400 max-w-xs truncate">
-                      {hyp.thesis_text}
                     </td>
                     <td className="py-3 px-3 text-slate-500">
                       {new Date(hyp.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -302,7 +320,7 @@ export default function Dashboard() {
                     <td className="py-3 px-3 text-right">
                       <Link
                         href={`/hypotheses/${hyp.id}`}
-                        className="text-emerald-400 hover:text-emerald-300 hover:underline"
+                        className="text-emerald-400 hover:text-emerald-300 hover:underline text-[11px]"
                       >
                         Inspect Audit &rarr;
                       </Link>

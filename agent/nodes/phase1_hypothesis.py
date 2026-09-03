@@ -198,8 +198,11 @@ stop-loss distance to compute the actual position size. The `qty` field is advis
 
         final_qty = size_result.qty
 
+        triggered_by = state.get("triggered_by") or "manual"
+
         # Build risk metadata to store alongside the hypothesis
         risk_metadata = {
+            "triggered_by": triggered_by,
             "risk_mode": state.get("risk_mode") or "percent",
             "risk_value": state.get("risk_value") or 1.0,
             "dollar_risk": size_result.dollar_risk,

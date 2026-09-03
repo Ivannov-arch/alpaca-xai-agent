@@ -70,6 +70,7 @@ export default function HypothesesPage() {
                 <tr className="border-b border-slate-800 text-slate-400 uppercase">
                   <th className="py-3 px-3">Created</th>
                   <th className="py-3 px-3">Symbol</th>
+                  <th className="py-3 px-3">Trigger</th>
                   <th className="py-3 px-3">Side</th>
                   <th className="py-3 px-3">Qty</th>
                   <th className="py-3 px-3">Entry Price</th>
@@ -93,6 +94,17 @@ export default function HypothesesPage() {
                       })}
                     </td>
                     <td className="py-3.5 px-3 font-bold text-emerald-400">{hyp.symbol}</td>
+                    <td className="py-3.5 px-3">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
+                          hyp.risk_metadata?.triggered_by === "scanner"
+                            ? "bg-purple-950 text-purple-300 border border-purple-800"
+                            : "bg-slate-900 text-slate-300 border border-slate-700"
+                        }`}
+                      >
+                        {hyp.risk_metadata?.triggered_by === "scanner" ? "⚡ SCANNER" : "MANUAL"}
+                      </span>
+                    </td>
                     <td className="py-3.5 px-3">
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${

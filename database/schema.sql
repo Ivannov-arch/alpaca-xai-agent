@@ -41,8 +41,8 @@ CREATE TABLE IF NOT EXISTS public.hypotheses (
     thesis_text             TEXT NOT NULL,
     invalidation_triggers   JSONB NOT NULL DEFAULT '[]',
     status                  TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'ACTIVE', 'CLOSED', 'ABORTED')),
-    -- Risk sizing metadata (populated by agent/risk.py in Phase 1)
-    -- Schema: { risk_mode, risk_value, dollar_risk, pct_of_equity, position_value, capped, equity_at_trade, hard_ceiling_pct }
+    -- Risk sizing & audit metadata (populated by agent/risk.py & agent/scanner.py in Phase 1)
+    -- Schema: { triggered_by ('manual' | 'scanner'), risk_mode, risk_value, dollar_risk, pct_of_equity, position_value, capped, equity_at_trade, hard_ceiling_pct }
     -- Old records before this feature will have '{}' — display as "Legacy (fixed size)"
     risk_metadata           JSONB NOT NULL DEFAULT '{}',
     -- Memory context: past lessons retrieved at hypothesis creation

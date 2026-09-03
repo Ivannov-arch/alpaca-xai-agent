@@ -22,6 +22,7 @@ export interface Hypothesis {
   status: "PENDING" | "ACTIVE" | "CLOSED" | "ABORTED";
   alpaca_order_id?: string;
   risk_metadata?: {
+    triggered_by?: "manual" | "scanner" | string;
     risk_mode?: string;
     risk_value?: number;
     dollar_risk?: number;
@@ -340,4 +341,154 @@ export async function fetchMarketBars(
   if (!res.ok) throw new Error("Failed to fetch market data");
   const data = await res.json();
   return data.bars || [];
+}
+
+// ── Multi-Asset Scanner Interfaces & APIs ─────────────────────────────
+
+export interface ScreenResult {
+  symbol: string;
+  passed: boolean;
+  passed_count: number;
+  criteria_met: string[];
+  metrics: {
+    latest_close?: number;
+    volume_ratio?: number;
+    rsi?: number;
+    breakout_type?: string;
+  };
+  reason?: string;
+  already_active?: boolean;
+  escalation_status?: string;
+  hypothesis_id?: string;
+  alpaca_order_id?: string;
+  error?: string;
+}
+
+export interface PortfolioRiskExposure {
+  equity: number;
+  total_dollar_risk: number;
+  total_risk_pct: number;
+  active_positions_count: number;
+  is_over_cap: boolean;
+  aggregate_cap_pct: number;
+  remaining_risk_budget_dollars: number;
+}
+
+export interface ScannerStatus {
+  enabled: boolean;
+  is_scanning: boolean;
+  last_scan_time: string | null;
+  next_scan_time: string | null;
+  interval_minutes: number;
+  watchlist_count: number;
+  criteria_threshold: number;
+  max_escalations_per_cycle: number;
+  aggregate_risk_cap_pct: number;
+  daily_circuit_breaker_pct: number;
+  last_cycle?: {
+    timestamp: string | null;
+    scanned_count: number;
+    passed_count: number;
+    escalated_count: number;
+    circuit_breaker_tripped: boolean;
+    circuit_breaker_msg: string | null;
+    portfolio_risk_exposure?: PortfolioRiskExposure;
+    tickers: ScreenResult[];
+    errors: string[];
+  };
+  last_error: string | null;
+}
+
+export interface ScannerConfig {
+  enabled: boolean;
+  interval_minutes: number;
+  watchlist: string[];
+  criteria_threshold: number;
+  volume_spike_multiplier: number;
+  rsi_oversold: number;
+  rsi_overbought: number;
+  breakout_period: number;
+  max_escalations_per_cycle: number;
+  aggregate_risk_cap_pct: number;
+  daily_circuit_breaker_pct: number;
+  strategy_profile: string;
+  risk_mode: string;
+  risk_value: number;
+}
+
+export async function fetchScannerStatus(): Promise<ScannerStatus> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/scanner/status`, { cache: "no-store" });
+    if (!res.ok) throw new Error("Failed to fetch scanner status");
+    return await res.json();
+  } catch (e) {
+    console.warn("fetchScannerStatus error:", e);
+    return {
+      enabled: true,
+      is_scanning: false,
+      last_scan_time: null,
+      next_scan_time: null,
+      interval_minutes: 15,
+      watchlist_count: 52,
+      criteria_threshold: 2,
+      max_escalations_per_cycle: 3,
+      aggregate_risk_cap_pct: 6.0,
+      daily_circuit_breaker_pct: -5.0,
+      last_error: null,
+    };
+  }
+}
+
+export async function toggleScanner(enabled: boolean): Promise<{ enabled: boolean; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/scanner/toggle`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) throw new Error("Failed to toggle scanner");
+  return res.json();
+}
+
+export async function triggerManualScan(accountId: string = getAccountId()): Promise<any> {
+  const res = await fetch(`${API_BASE_URL}/scanner/trigger`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ account_id: accountId }),
+  });
+  if (!res.ok) throw new Error("Failed to trigger scanner cycle");
+  return res.json();
+}
+
+export async function fetchScannerConfig(): Promise<ScannerConfig> {
+  const res = await fetch(`${API_BASE_URL}/scanner/config`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch scanner config");
+  return res.json();
+}
+
+export async function updateScannerConfig(config: Partial<ScannerConfig>): Promise<ScannerConfig> {
+  const res = await fetch(`${API_BASE_URL}/scanner/config`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
+  if (!res.ok) throw new Error("Failed to update scanner config");
+  return res.json();
+}
+
+export async function fetchPortfolioRisk(accountId: string = getAccountId()): Promise<PortfolioRiskExposure> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/scanner/portfolio-risk?account_id=${accountId}`, { cache: "no-store" });
+    if (!res.ok) throw new Error("Failed to fetch portfolio risk");
+    return await res.json();
+  } catch (e) {
+    return {
+      equity: 100000,
+      total_dollar_risk: 0,
+      total_risk_pct: 0,
+      active_positions_count: 0,
+      is_over_cap: false,
+      aggregate_cap_pct: 6.0,
+      remaining_risk_budget_dollars: 6000,
+    };
+  }
 }

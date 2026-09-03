@@ -24,9 +24,12 @@ import math
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-HARD_CEILING_PCT: float = 0.05   # 5 % of equity max per single trade
-MIN_NOTIONAL: float = 1.0        # Minimum $1 position value
-DEFAULT_RISK_PCT: float = 0.01   # 1 % default when no settings supplied
+HARD_CEILING_PCT: float = 0.05               # 5 % of equity max per single trade
+MIN_NOTIONAL: float = 1.0                    # Minimum $1 position value
+DEFAULT_RISK_PCT: float = 0.01               # 1 % default when no settings supplied
+DEFAULT_AGGREGATE_RISK_CAP_PCT: float = 0.06 # 6 % aggregate portfolio equity risk cap
+DEFAULT_DAILY_CIRCUIT_BREAKER_PCT: float = -0.05 # -5 % daily equity loss halts scanner
+DEFAULT_MAX_ESCALATIONS_PER_CYCLE: int = 3   # Max 3 tickers escalated to Gemini per scan cycle
 
 
 # ── Data structures ───────────────────────────────────────────────────────────
@@ -211,3 +214,97 @@ def risk_settings_from_state(state: dict) -> RiskSettings:
         return RiskSettings(mode=mode, value=value)
     except ValueError:
         return RiskSettings.default()
+
+
+# ── Portfolio-Level Risk & Circuit Breakers ───────────────────────────────────
+
+def calculate_portfolio_risk_exposure(
+    equity: float,
+    active_hypotheses: list[dict],
+) -> dict:
+    """
+    Calculates total dollar risk and % of equity currently exposed across all active positions.
+    """
+    if equity <= 0:
+        return {
+            "equity": equity,
+            "total_dollar_risk": 0.0,
+            "total_risk_pct": 0.0,
+            "active_positions_count": 0,
+            "is_over_cap": False,
+            "aggregate_cap_pct": DEFAULT_AGGREGATE_RISK_CAP_PCT * 100,
+            "remaining_risk_budget_dollars": 0.0,
+        }
+
+    total_dollar_risk = 0.0
+    for hyp in active_hypotheses:
+        risk_meta = hyp.get("risk_metadata") or {}
+        d_risk = risk_meta.get("dollar_risk")
+        if d_risk is not None and float(d_risk) > 0:
+            total_dollar_risk += float(d_risk)
+        else:
+            # Fallback estimation for legacy trades without risk_metadata
+            qty = float(hyp.get("qty") or 0)
+            entry = float(hyp.get("entry_price") or 0)
+            stop = float(hyp.get("stop_loss_price") or 0)
+            if qty > 0 and entry > 0 and stop > 0:
+                total_dollar_risk += qty * abs(entry - stop)
+
+    total_risk_pct = (total_dollar_risk / equity) * 100.0
+    max_allowed_dollar_risk = equity * DEFAULT_AGGREGATE_RISK_CAP_PCT
+    remaining_budget = max(0.0, max_allowed_dollar_risk - total_dollar_risk)
+
+    return {
+        "equity": round(equity, 2),
+        "total_dollar_risk": round(total_dollar_risk, 2),
+        "total_risk_pct": round(total_risk_pct, 2),
+        "active_positions_count": len(active_hypotheses),
+        "is_over_cap": total_risk_pct >= (DEFAULT_AGGREGATE_RISK_CAP_PCT * 100),
+        "aggregate_cap_pct": round(DEFAULT_AGGREGATE_RISK_CAP_PCT * 100, 2),
+        "remaining_risk_budget_dollars": round(remaining_budget, 2),
+    }
+
+
+def validate_portfolio_risk_budget(
+    equity: float,
+    current_dollar_risk: float,
+    new_trade_dollar_risk: float,
+    aggregate_cap_pct: float = DEFAULT_AGGREGATE_RISK_CAP_PCT,
+) -> tuple[bool, Optional[str]]:
+    """
+    Checks if opening a new position would violate the aggregate portfolio risk cap.
+    Returns (is_allowed, rejection_reason).
+    """
+    if equity <= 0:
+        return False, f"Invalid account equity: ${equity:.2f}"
+
+    max_portfolio_risk = equity * aggregate_cap_pct
+    projected_risk = current_dollar_risk + new_trade_dollar_risk
+
+    if projected_risk > max_portfolio_risk:
+        projected_pct = (projected_risk / equity) * 100
+        cap_pct = aggregate_cap_pct * 100
+        return False, (
+            f"Aggregate portfolio risk cap exceeded! Projected risk would be "
+            f"${projected_risk:.2f} ({projected_pct:.2f}% of equity), "
+            f"exceeding the {cap_pct:.1f}% portfolio limit (Max: ${max_portfolio_risk:.2f})."
+        )
+
+    return True, None
+
+
+def check_daily_circuit_breaker(
+    current_equity: float,
+    last_day_equity: float,
+    threshold_pct: float = DEFAULT_DAILY_CIRCUIT_BREAKER_PCT,
+) -> tuple[bool, float]:
+    """
+    Checks whether daily equity loss has breached the daily circuit breaker threshold (e.g. -5%).
+    Returns (is_tripped, daily_pnl_pct).
+    """
+    if last_day_equity <= 0:
+        return False, 0.0
+
+    daily_pnl_pct = (current_equity - last_day_equity) / last_day_equity
+    is_tripped = daily_pnl_pct <= threshold_pct
+    return is_tripped, round(daily_pnl_pct * 100, 2)

@@ -21,8 +21,11 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from agent.config import AUDIT_INTERVAL_MINUTES
 from agent.db import get_active_hypotheses
 from agent.graph import audit_graph
+from agent.scanner import run_scanner_cycle, load_scanner_config
 
 logger = logging.getLogger(__name__)
+
+_global_scheduler: AsyncIOScheduler | None = None
 
 
 async def _run_audit_cycle() -> None:
@@ -74,12 +77,23 @@ async def _run_audit_cycle() -> None:
             logger.exception(f"[worker]   Unhandled error auditing {symbol}: {exc}")
 
 
+async def _run_scanner_job() -> None:
+    """Background task running the multi-asset auto-scanner cycle."""
+    try:
+        await run_scanner_cycle(is_manual=False)
+    except Exception as exc:
+        logger.exception(f"[worker] Unhandled error in scanner job: {exc}")
+
+
 def create_scheduler() -> AsyncIOScheduler:
     """
     Creates and configures the APScheduler instance.
-    Call start() on the returned scheduler to activate the loop.
+    Call start() on the returned scheduler to activate the loops.
     """
+    global _global_scheduler
     scheduler = AsyncIOScheduler()
+
+    # 1. Audit Cycle (Phase 3 & 4)
     scheduler.add_job(
         _run_audit_cycle,
         trigger="interval",
@@ -88,7 +102,38 @@ def create_scheduler() -> AsyncIOScheduler:
         name="Audit all ACTIVE hypotheses",
         replace_existing=True,
     )
+
+    # 2. Scanner Cycle (Multi-Asset Auto-Discovery)
+    cfg = load_scanner_config()
+    interval = cfg.get("interval_minutes", 15)
+    scheduler.add_job(
+        _run_scanner_job,
+        trigger="interval",
+        minutes=interval,
+        id="scanner_cycle",
+        name="Auto-Discovery Multi-Asset Scanner",
+        replace_existing=True,
+    )
+
+    _global_scheduler = scheduler
     return scheduler
+
+
+def get_scheduler() -> AsyncIOScheduler | None:
+    return _global_scheduler
+
+
+def update_scanner_job_interval(minutes: int) -> None:
+    """Updates the scanner job trigger interval dynamically."""
+    if _global_scheduler:
+        job = _global_scheduler.get_job("scanner_cycle")
+        if job:
+            _global_scheduler.reschedule_job(
+                "scanner_cycle",
+                trigger="interval",
+                minutes=max(1, minutes),
+            )
+            logger.info(f"[worker] Rescheduled scanner job to every {minutes} minutes.")
 
 
 # ── Standalone entry point ────────────────────────────────────────────
@@ -103,8 +148,9 @@ async def _main() -> None:
     scheduler = create_scheduler()
     scheduler.start()
 
-    # Run one immediate cycle so we don't wait a full interval on startup
+    # Run initial audit and scanner passes on startup
     await _run_audit_cycle()
+    await _run_scanner_job()
 
     # Keep the process alive
     try:

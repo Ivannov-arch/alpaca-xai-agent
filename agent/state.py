@@ -26,6 +26,7 @@ class AgentState(TypedDict):
     # ── Risk sizing inputs (from UI / API request) ───────────────────
     risk_mode: Optional[str]    # "percent" | "dollar"
     risk_value: Optional[float] # e.g. 1.0 (percent mode) or 500.0 (dollar mode)
+    triggered_by: Optional[str] # "manual" | "scanner"
 
     # ── Phase 1 outputs ─────────────────────────────────────────────
     hypothesis_id: Optional[str]    # UUID assigned after DB insert

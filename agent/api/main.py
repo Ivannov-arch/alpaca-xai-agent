@@ -3,15 +3,23 @@ api/main.py — FastAPI application entry point.
 
 Endpoints exposed to the Next.js frontend:
 
-  POST /trade/start          → Run Phase 1+2 (formulate + execute a new trade)
-  GET  /trade/hypotheses     → List all hypotheses for an account
-  GET  /trade/{id}           → Get a single hypothesis with its audit logs
-  POST /trade/{id}/audit     → Manually trigger one audit cycle (Phase 3)
-  GET  /portfolio            → Live Alpaca account + open positions
-  GET  /memory               → List all post-mortems (vector memory)
+  POST /trade/start            → Run Phase 1+2 (formulate + execute a new trade)
+  GET  /trade/hypotheses       → List all hypotheses for an account
+  GET  /trade/{id}             → Get a single hypothesis with its audit logs
+  POST /trade/{id}/audit       → Manually trigger one audit cycle (Phase 3)
+  POST /trade/scan-watchlist   → Batch scan a custom list of tickers
+  GET  /portfolio              → Live Alpaca account + open positions
+  GET  /memory                 → List all post-mortems (vector memory)
+  GET  /market-data            → Historical OHLCV bars
+  GET  /risk-settings/defaults → Default risk rules & hard ceilings
 
-All endpoints require an `account_id` header or query param for scoping.
-The worker scheduler starts automatically via FastAPI lifespan.
+  # Auto-Scanner Endpoints:
+  GET  /scanner/status         → Live scanner worker telemetry, cycle stats & countdown
+  POST /scanner/toggle         → Enable / Disable the background auto-scanner
+  POST /scanner/trigger        → Run an instant on-demand auto-discovery cycle
+  GET  /scanner/config         → Get 50+ ticker watchlist & 2-of-3 criteria settings
+  POST /scanner/config         → Update watchlist & criteria settings without redeploy
+  GET  /scanner/portfolio-risk → Aggregate portfolio risk exposure vs 6.0% cap
 """
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Header
@@ -24,9 +32,17 @@ from agent.db import (
     get_hypothesis,
     get_audit_logs,
     list_post_mortems,
+    get_active_hypotheses,
 )
 from agent.tools.alpaca_tools import get_account, get_positions
-from agent.worker import create_scheduler
+from agent.worker import create_scheduler, update_scanner_job_interval
+from agent.scanner import (
+    get_scanner_status,
+    load_scanner_config,
+    save_scanner_config,
+    run_scanner_cycle,
+)
+from agent.risk import calculate_portfolio_risk_exposure
 
 
 # ── Lifespan: start/stop the background worker ────────────────────────
@@ -64,6 +80,7 @@ class StartTradeRequest(BaseModel):
     strategy_profile: str = "SWING"
     risk_mode: str = "percent"   # "percent" | "dollar"
     risk_value: float = 1.0      # 1.0 = 1% of equity (percent mode) or $1.00 (dollar mode)
+    triggered_by: str = "manual" # "manual" | "scanner"
 
 
 class ScanWatchlistRequest(BaseModel):
@@ -72,9 +89,35 @@ class ScanWatchlistRequest(BaseModel):
     strategy_profile: str = "SWING"
     risk_mode: str = "percent"
     risk_value: float = 1.0
+    triggered_by: str = "manual"
 
 
-# ── Routes ────────────────────────────────────────────────────────────
+class ToggleScannerRequest(BaseModel):
+    enabled: bool
+
+
+class TriggerScanRequest(BaseModel):
+    account_id: str | None = None
+
+
+class UpdateScannerConfigRequest(BaseModel):
+    enabled: bool | None = None
+    interval_minutes: int | None = None
+    watchlist: list[str] | None = None
+    criteria_threshold: int | None = None
+    volume_spike_multiplier: float | None = None
+    rsi_oversold: float | None = None
+    rsi_overbought: float | None = None
+    breakout_period: int | None = None
+    max_escalations_per_cycle: int | None = None
+    aggregate_risk_cap_pct: float | None = None
+    daily_circuit_breaker_pct: float | None = None
+    strategy_profile: str | None = None
+    risk_mode: str | None = None
+    risk_value: float | None = None
+
+
+# ── Routes: Core Trading & Hypotheses ─────────────────────────────────
 
 @app.get("/")
 @app.get("/health")
@@ -89,12 +132,13 @@ async def start_trade(req: StartTradeRequest, background_tasks: BackgroundTasks)
     Returns immediately with the created hypothesis_id.
     """
     initial_state = {
-        "symbol": req.symbol,
+        "symbol": req.symbol.strip().upper(),
         "account_id": req.account_id,
         "strategy_profile": req.strategy_profile,
         # Risk sizing inputs
         "risk_mode": req.risk_mode,
         "risk_value": req.risk_value,
+        "triggered_by": req.triggered_by,
         "computed_qty": None,
         "dollar_risk": None,
         "pct_of_equity": None,
@@ -196,6 +240,7 @@ async def scan_watchlist(req: ScanWatchlistRequest):
             # Risk sizing inputs
             "risk_mode": req.risk_mode,
             "risk_value": req.risk_value,
+            "triggered_by": req.triggered_by,
             "computed_qty": None,
             "dollar_risk": None,
             "pct_of_equity": None,
@@ -216,6 +261,9 @@ async def scan_watchlist(req: ScanWatchlistRequest):
                 "status": final_state.get("status"),
                 "hypothesis_id": final_state.get("hypothesis_id"),
                 "alpaca_order_id": final_state.get("alpaca_order_id"),
+                "computed_qty": final_state.get("computed_qty"),
+                "dollar_risk": final_state.get("dollar_risk"),
+                "pct_of_equity": final_state.get("pct_of_equity"),
                 "error": final_state.get("error"),
             })
         except Exception as e:
@@ -226,6 +274,8 @@ async def scan_watchlist(req: ScanWatchlistRequest):
             })
     return {"account_id": req.account_id, "scanned_count": len(req.symbols), "results": results}
 
+
+# ── Routes: Portfolio & Account ───────────────────────────────────────
 
 @app.get("/portfolio")
 async def get_portfolio(
@@ -243,6 +293,7 @@ async def get_portfolio(
                 "cash": account.get("cash"),
                 "buying_power": account.get("buying_power"),
                 "equity": account.get("equity"),
+                "last_equity": account.get("last_equity"),
             },
             "positions": positions,
         }
@@ -273,9 +324,73 @@ async def get_risk_defaults():
     Returns the hard-coded risk ceiling and default values.
     The frontend queries this to display the cap warning to users.
     """
-    from agent.risk import HARD_CEILING_PCT, DEFAULT_RISK_PCT
+    from agent.risk import (
+        HARD_CEILING_PCT,
+        DEFAULT_RISK_PCT,
+        DEFAULT_AGGREGATE_RISK_CAP_PCT,
+        DEFAULT_DAILY_CIRCUIT_BREAKER_PCT,
+    )
     return {
-        "hard_ceiling_pct": HARD_CEILING_PCT * 100,   # e.g. 5.0
-        "default_risk_pct": DEFAULT_RISK_PCT * 100,    # e.g. 1.0
+        "hard_ceiling_pct": HARD_CEILING_PCT * 100,   # 5.0%
+        "default_risk_pct": DEFAULT_RISK_PCT * 100,    # 1.0%
+        "aggregate_risk_cap_pct": DEFAULT_AGGREGATE_RISK_CAP_PCT * 100, # 6.0%
+        "daily_circuit_breaker_pct": DEFAULT_DAILY_CIRCUIT_BREAKER_PCT * 100, # -5.0%
         "supported_modes": ["percent", "dollar"],
     }
+
+
+# ── Routes: Automated Multi-Asset Scanner ─────────────────────────────
+
+@app.get("/scanner/status")
+async def get_scanner_telemetry():
+    """Returns current scanner status, config, and last cycle metrics."""
+    return get_scanner_status()
+
+
+@app.post("/scanner/toggle")
+async def toggle_scanner(req: ToggleScannerRequest):
+    """Enables or disables the background auto-scanner."""
+    cfg = save_scanner_config({"enabled": req.enabled})
+    return {"enabled": cfg["enabled"], "message": f"Scanner {'enabled' if req.enabled else 'disabled'} successfully"}
+
+
+@app.post("/scanner/trigger")
+async def trigger_scanner_cycle(req: TriggerScanRequest = None):
+    """Triggers an immediate auto-discovery scan cycle."""
+    acc_id = req.account_id if req else None
+    result = await run_scanner_cycle(account_id=acc_id, is_manual=True)
+    return result
+
+
+@app.get("/scanner/config")
+async def get_scanner_configuration():
+    """Returns the current 50+ asset watchlist and 2-of-3 criteria configuration."""
+    return load_scanner_config()
+
+
+@app.post("/scanner/config")
+async def update_scanner_configuration(req: UpdateScannerConfigRequest):
+    """Updates the scanner watchlist and criteria parameters without redeployment."""
+    updates = req.model_dump(exclude_unset=True)
+    new_cfg = save_scanner_config(updates)
+    if "interval_minutes" in updates and updates["interval_minutes"]:
+        update_scanner_job_interval(updates["interval_minutes"])
+    return new_cfg
+
+
+@app.get("/scanner/portfolio-risk")
+async def get_portfolio_risk_overview(account_id: str = "66e809f1-2f0e-4a3a-8ea3-bdb7c2d5a849"):
+    """Returns live aggregate portfolio risk exposure across all active positions."""
+    try:
+        account_data = get_account()
+        equity = float(account_data.get("equity") or account_data.get("portfolio_value") or 100_000.0)
+    except Exception:
+        equity = 100_000.0
+
+    try:
+        active_hypotheses = get_active_hypotheses()
+    except Exception:
+        active_hypotheses = []
+
+    exposure = calculate_portfolio_risk_exposure(equity, active_hypotheses)
+    return exposure

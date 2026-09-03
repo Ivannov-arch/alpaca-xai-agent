@@ -8,7 +8,7 @@ This document outlines the advanced development roadmap for enhancing the autono
 * **Description:** Implement percentage-based risk control (e.g., maximum 2% of total portfolio equity per trade) instead of fixed lot ranges.
 * **UI Feature:** "Max Allocation ($ / %)" input field on the frontend dashboard to allow users to customize transaction limits.
 
-## 2. 🔍 Automated Multi-Asset Scanner (Auto-Discovery)
+## 2. 🔍 Automated Multi-Asset Scanner (Auto-Discovery) ✅
 * **Description:** Create a background scanner that periodically monitors 50+ stock and crypto tickers. The agent automatically selects the best setups based on technical criteria for Phase 1 analysis without requiring manual user triggers.
 
 ## 3. 🎯 Dynamic Trailing Stop & Partial Profit Taking (Scale-Out)

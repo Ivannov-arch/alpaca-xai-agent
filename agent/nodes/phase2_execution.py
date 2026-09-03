@@ -61,7 +61,7 @@ async def phase2_execute_order(state: AgentState) -> dict:
         )
 
         # ── 4. Extract Alpaca order ID ─────────────────────────────────
-        alpaca_order_id = order_response["id"]
+        alpaca_order_id = order_response.get("id") if isinstance(order_response, dict) else str(order_response)
 
         # ── 5. Update hypothesis in DB → ACTIVE ───────────────────────
         update_hypothesis(

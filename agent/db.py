@@ -144,6 +144,21 @@ def list_hypotheses(account_id: str) -> list[dict]:
 
         hyp["exit_price"] = latest_price if hyp.get("status") in ("CLOSED", "ACTIVE") else None
 
+        # Dynamic fallback calculation if stored PnL is 0.0 or None while exit_price and entry_price exist
+        entry_p = float(hyp.get("entry_price") or 0.0)
+        exit_p = float(hyp.get("exit_price") or 0.0)
+        qty = float(hyp.get("qty") or 1.0)
+        side = (hyp.get("side") or "buy").lower()
+
+        if entry_p > 0 and exit_p > 0:
+            calc_pnl_pct = ((exit_p - entry_p) / entry_p) * 100.0 if side == "buy" else ((entry_p - exit_p) / entry_p) * 100.0
+            calc_pnl_abs = (exit_p - entry_p) * qty if side == "buy" else (entry_p - exit_p) * qty
+            stored_pct = hyp.get("pnl_percentage")
+            if stored_pct is None or (abs(float(stored_pct or 0)) < 0.0001 and abs(calc_pnl_pct) > 0.001):
+                hyp["pnl_percentage"] = round(calc_pnl_pct, 4)
+                hyp["pnl_absolute"] = round(calc_pnl_abs, 2)
+                hyp["outcome"] = "WIN" if calc_pnl_pct > 0.1 else ("LOSS" if calc_pnl_pct < -0.1 else "BREAKEVEN")
+
     return hypotheses or []
 
 
@@ -210,11 +225,36 @@ def search_similar_post_mortems(
 
 
 def list_post_mortems(account_id: str) -> list[dict]:
-    return (
+    data = (
         get_client()
         .table("post_mortems")
-        .select("*, hypotheses(symbol, side)")
+        .select("*, hypotheses(symbol, side, entry_price, qty)")
         .order("created_at", desc=True)
         .execute()
         .data
     )
+
+    for pm in (data or []):
+        stored_pct = float(pm.get("pnl_percentage") or 0.0)
+        if abs(stored_pct) < 0.0001 and pm.get("hypothesis_id"):
+            try:
+                hyp = pm.get("hypotheses") or {}
+                entry_p = float(hyp.get("entry_price") or 0.0)
+                qty = float(hyp.get("qty") or 1.0)
+                side = (hyp.get("side") or "buy").lower()
+                logs = get_audit_logs(pm["hypothesis_id"])
+                if logs and entry_p > 0:
+                    sorted_logs = sorted(logs, key=lambda x: x.get("created_at", ""), reverse=True)
+                    snap = sorted_logs[0].get("market_snapshot", {})
+                    exit_p = float(snap.get("current_price") or 0.0)
+                    if exit_p > 0:
+                        calc_pct = ((exit_p - entry_p) / entry_p) * 100.0 if side == "buy" else ((entry_p - exit_p) / entry_p) * 100.0
+                        calc_abs = (exit_p - entry_p) * qty if side == "buy" else (entry_p - exit_p) * qty
+                        if abs(calc_pct) > 0.001:
+                            pm["pnl_percentage"] = round(calc_pct, 4)
+                            pm["pnl_absolute"] = round(calc_abs, 2)
+                            pm["outcome"] = "WIN" if calc_pct > 0.1 else ("LOSS" if calc_pct < -0.1 else "BREAKEVEN")
+            except Exception:
+                pass
+
+    return data or []

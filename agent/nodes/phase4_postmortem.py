@@ -91,23 +91,41 @@ async def phase4_post_mortem(state: AgentState) -> dict:
         hypothesis = get_hypothesis(hypothesis_id)
         symbol = hypothesis["symbol"]
 
-        # ── 1. Close position on Alpaca ────────────────────────────────
+        # ── 1. Fetch audit logs & close position on Alpaca ────────────
+        audit_logs = get_audit_logs(hypothesis_id)
+        latest_audit_price = None
+        if audit_logs:
+            sorted_logs = sorted(audit_logs, key=lambda x: x.get("created_at", ""), reverse=True)
+            snap = sorted_logs[0].get("market_snapshot", {})
+            latest_audit_price = snap.get("current_price")
+
         try:
-            close_resp = close_position(symbol)
-            # Alpaca returns the closed order; PnL in profit_loss field
-            raw_pnl = close_resp.get("profit_loss") or 0.0
-            avg_entry = float(hypothesis.get("entry_price") or close_resp.get("avg_entry_price") or 1)
-            pnl_pct = (float(raw_pnl) / (avg_entry * float(hypothesis.get("qty", 1)))) * 100
-            pnl_abs = float(raw_pnl)
+            close_resp = close_position(symbol) or {}
+            filled_price = close_resp.get("filled_avg_price") or close_resp.get("avg_entry_price")
         except Exception:
-            # Position may already be closed (market closed, or filled at 0)
+            close_resp = {}
+            filled_price = None
+
+        exit_price = float(filled_price or latest_audit_price or hypothesis.get("entry_price") or 0.0)
+        entry_price = float(hypothesis.get("entry_price") or exit_price or 1.0)
+        qty = float(hypothesis.get("qty") or 1.0)
+        side = (hypothesis.get("side") or "buy").lower()
+
+        if entry_price > 0 and exit_price > 0:
+            if side == "buy":
+                pnl_pct = ((exit_price - entry_price) / entry_price) * 100.0
+                pnl_abs = (exit_price - entry_price) * qty
+            else:
+                pnl_pct = ((entry_price - exit_price) / entry_price) * 100.0
+                pnl_abs = (entry_price - exit_price) * qty
+        else:
             pnl_pct = 0.0
             pnl_abs = 0.0
 
         # ── 2. Determine outcome ───────────────────────────────────────
-        if pnl_pct > 0.5:
+        if pnl_pct > 0.1:
             outcome = "WIN"
-        elif pnl_pct < -0.5:
+        elif pnl_pct < -0.1:
             outcome = "LOSS"
         else:
             outcome = "BREAKEVEN"
